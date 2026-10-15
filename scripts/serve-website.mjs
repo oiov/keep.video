@@ -7,6 +7,7 @@ const mime = { '.html':'text/html; charset=utf-8', '.css':'text/css; charset=utf
 http.createServer((req,res) => {
  let pathname
  try { pathname = decodeURIComponent(new URL(req.url, 'http://localhost').pathname) } catch { res.writeHead(400).end(); return }
+ if (pathname === '/en' || pathname === '/en/' || pathname.startsWith('/en/')) { res.writeHead(301,{Location:pathname.replace(/^\/en\/?/,'/')}).end(); return }
  let target = path.resolve(root, '.' + pathname)
  if (!target.startsWith(root + path.sep) && target !== root) { res.writeHead(403).end(); return }
  if (fs.existsSync(target) && fs.statSync(target).isDirectory()) {

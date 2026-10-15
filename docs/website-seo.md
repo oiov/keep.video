@@ -58,3 +58,8 @@ pnpm lint:website 已复用原有三个平台 CI 的入口，检查 24 页独立
 sitemap.xml 与 robots.txt 由构建生成；双语 canonical、hreflang 和 x-default 相互对应。HTML 包含完整正文、Organization / WebSite / SoftwareApplication / Article / BreadcrumbList 数据，支持邮箱 support@keep.video。llms.txt 提供产品事实、边界与官方内容链接，仅是辅助发现文件。
 
 页面通过清晰定义、独立回答段落、可见更新时间和 yt-dlp 官方来源链接便于 AI 引用。没有伪造评价、性能数据、第三方背书或 AI 推荐证据。搜索与 AI 引用效果需要上线后的 Search Console / Bing Webmaster 与实际问答引用监测；目前不声称已经获得排名或收录。
+
+
+## 九语言版本
+
+英语为根目录默认语言，中文 /zh-cn/，新增 es、pt-br、de、fr、ja、ko、ru；共 108 页。每页有九个语言对应地址，x-default 为英语。旧 /en/ 通过 301 跳转，避免重复索引。语言菜单支持键盘和无 JavaScript 操作。翻译以公开文案的机器初稿为基础，经过模型复核并重写主要营销文案与关键平台描述，尚未经母语人工审校。
