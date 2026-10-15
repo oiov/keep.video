@@ -7,7 +7,7 @@
 - 新增 14 页双语产品网站、原创 AI 素材及完整 SEO 配置。
 - 支持视频、音频、字幕下载与队列管理，继承上游下载引擎能力。
 
-## 上游历史
+## [Upstream history]
 
 以下保留 DownVid 上游版本历史。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
