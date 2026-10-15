@@ -88,7 +88,7 @@ const ISSUE_60 = `### Platform
 
 macOS (Apple Silicon)
 
-### KeepVideo Version
+### Keep Video Version
 
 dadas
 
@@ -155,10 +155,12 @@ suite.case('空报告只多打几个换行 / 空格仍然算空', async (t) => {
 suite.case('手工提交但填占位垃圾的模板 Issue（#60）应被关闭', async (t) => {
   // 这条不是应用自动生成的，是用户从模板手工提交、把必填项填成 dsadsa/dadas。
   // 模板校验只要求「非空」，所以照样能开出来，正文里没有任何可用信息。
-  const v = classifyIssue(ISSUE_60)
-  t.equal(v.close, true, '全是占位文字，无法据此定位问题')
-  t.equal(v.reason, 'insufficient-info', '应归类为「信息不足」而不是「只有模板」')
-  t.ok(commentFor(v).includes('链接'), '关评要告诉用户该补什么信息')
+  for (const heading of ['Keep Video Version', 'KeepVideo Version', 'Keep Video 版本号', 'KeepVideo 版本号']) {
+    const v = classifyIssue(ISSUE_60.replace('Keep Video Version', heading))
+    t.equal(v.close, true, heading + '：全是占位文字，无法据此定位问题')
+    t.equal(v.reason, 'insufficient-info', '应归类为「信息不足」而不是「只有模板」')
+    t.ok(commentFor(v).includes('链接'), '关评要告诉用户该补什么信息')
+  }
 })
 
 suite.case('下拉框选项（Other）不算用户内容', async (t) => {
@@ -172,7 +174,7 @@ suite.case('填写完整的模板 Issue 不能关', async (t) => {
 
 Windows 11
 
-### KeepVideo Version
+### Keep Video Version
 
 1.3.4
 

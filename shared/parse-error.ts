@@ -157,8 +157,8 @@ export function isTemplateOnlyReport(body: string): boolean {
  */
 const TEMPLATE_SECTIONS = [
   // 章节标题（中 / 英）
-  /^#+\s*(运行平台|Keep Video 版本号?|问题类型|问题描述|复现步骤|视频链接.*|期望行为|截图.*|错误日志|提交前确认)\s*$/gm,
-  /^#+\s*(Platform|Keep Video Version|Issue Category|Issue Description|Steps to Reproduce|Video URL.*|Expected Behavior|Screenshots.*|Error Logs|Before Submitting)\s*$/gm,
+  /^#+\s*(运行平台|Keep\s?Video 版本号?|问题类型|问题描述|复现步骤|视频链接.*|期望行为|截图.*|错误日志|提交前确认)\s*$/gm,
+  /^#+\s*(Platform|Keep\s?Video Version|Issue Category|Issue Description|Steps to Reproduce|Video URL.*|Expected Behavior|Screenshots.*|Error Logs|Before Submitting)\s*$/gm,
 ]
 
 /** 模板里的固定选项与勾选项，不算用户输入 */
