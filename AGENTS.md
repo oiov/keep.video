@@ -36,7 +36,7 @@ pnpm test:settings:migration                    # 设置默认值与合并写入
 pnpm test:package                               # 打包产物内容校验（需先跑一次 --dir 打包）
 pnpm lint:ipc                                  # IPC 契约静态校验（三处同步 + 产物命名 + 仓库坐标一致）
 pnpm lint:icons                                # 图标名是否有效（写错会静默渲染成文字）
-pnpm lint:website                              # 官网单文件 / 引用资源 / 中英词条 / 配色一致性
+pnpm lint:website                              # 官网双语页面 / 内链资源 / SEO 发布模式
 pnpm lint:docs                                 # AGENTS.md ↔ CLAUDE.md 一致 + 引用路径与数字真实存在
 pnpm deps:manifest:check                       # 依赖清单是否落后上游
 cd backend && gofmt -l . && go vet ./... && go test -shuffle=on ./...   # Go 侧车
@@ -114,7 +114,7 @@ Dependabot 已忽略其大版本升级。
 | `src/` | Vue 3 渲染进程（`<script setup>`、Tailwind v4、Pinia） | `dist/` |
 | `shared/app.ts` | 仓库坐标与外部链接的**唯一来源** | 被三方共同引用 |
 | `tests/` | Vitest 纯逻辑单测 | — |
-| `website/` | 产品落地页（单文件、无构建，由 Vercel 的 Git 集成发布） | — |
+| `website/` | 静态官网（Node 生成，双语独立 URL） | — |
 | `scripts/` | 清单生成、构建边车、IPC / 官网校验、Release 正文 | — |
 
 两个 Electron 进程由 `vite-plugin-electron/simple` 从**同一个** `vite.config.ts` 构建；
@@ -203,34 +203,20 @@ Linux 用 `amd64`/`x86_64` 而不是 `x64`（与 electron-builder 的 `${arch}` 
 **换仓库时**：改 `shared/app.ts` + `electron-builder.json5` 的 `publish` + 各 workflow 里的仓库引用，
 三处必须一致，否则用户收不到更新。
 
-### 7. 改产品官网（`website/`）
+### 7. 产品官网（website/）
 
-单文件 `website/index.html`，**无构建步骤**，由 Vercel 项目 `downvid` 的 Git 集成在推送 main 后
-直接发布（`vercel.json` 指定 `outputDirectory: "website"`，域名 <https://downvid-coral.vercel.app>）。
-GitHub Pages **不再使用**：仓库从未在 Settings 里选过 Pages 源，`actions/configure-pages` 只会稳定报
-`Get Pages site failed`，那个工作流已删除。校验改由 `pnpm lint:website` 在三个 `ci-*.yml` 的 frontend job 跑。
+官网现在使用无第三方依赖的 Node 静态生成器，中文与英文拥有独立 URL。
+用户授权的 SEO 重构替代原先单文件与官网配色同步约定；桌面应用主题保持独立。
 
-容易静默失败的四点（`lint:website` 全部覆盖）：
-
-- **引用的仓库资源**（og:image、favicon、截图）走 `raw.githubusercontent.com/<owner>/<repo>/main/...`
-  绝对地址，文件改名/删除后线上裂图，本地无提示
-- **中英词条双向成对**：`data-i18n` 占位 ↔ `I18N.en` 词条，缺英文会永远显示中文
-- **配色是手抄的**：官网 `:root` 的 `--primary` 等必须与 `src/style.css` 的 `@theme` 一致
-- **零依赖**：除 Google Fonts 外不得外链脚本/样式（`.vercelignore` 只排除源码目录，不做校验）
-- **下载量是静态数字**：hero 的「已被下载 N 次」由 `pnpm website:stats` 刷新，
-  不接 shields.io / 不前端 fetch（理由见 `website/README.md`）；发布新版后顺手跑一次
-
----
-
-## 运行依赖（yt-dlp / ffmpeg / ffprobe）
-
-**安装包不再携带这三个二进制**（此前每架构约 80MB，且仓库靠 Git LFS 膨胀到 800MB+）。
-启动后由 Go 边车按「系统优先，缺失才下载」的顺序解析：
-
-1. 设置里手动指定的路径（`localStorage['settings'].depPaths`，**只对探测生效**）
-2. `userData/runtime/bin/`（DownVid 下载的，可覆盖更新）
-3. 登录 shell 的 PATH（GUI 应用只有精简 PATH，这一步是关键）＋ 各平台常见安装目录
-4. 裸命令名交给 PATH 兜底
+- 内容：`website/content.mjs`；品牌、域名与发布状态：`website/config.mjs`。
+- 生成：`scripts/build-website.mjs`；预览：`scripts/serve-website.mjs`。
+- 运行 pnpm website:build、pnpm lint:website；部署输出目录为 website/dist。
+- SITE_URL 或配置中的 origin 为空时输出 noindex、空 sitemap，不输出占位域名。
+- Vercel 预览及 SITE_PREVIEW=1 始终 noindex；生产 URL 统一尾斜杠。
+- 双语正文、canonical、hreflang、站点地图、内链必须一起维护。
+- 资源放 website/assets，不依赖原仓库 raw URL；不编造评分和下载量。
+- 新仓库发布安装包后才把 releaseAvailable 改为 true；上游下载入口必须标注来源。
+- 详细发布和维护流程见 `website/README.md`。
 
 ### 边车（`backend/`）
 

@@ -7,3 +7,5 @@ dist/
 dist-electron/
 .git/
 node_modules/
+
+work/

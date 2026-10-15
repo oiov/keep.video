@@ -1,3 +1,5 @@
+> **Framekeep / oiov/download**：本仓库基于 [DownVid](https://github.com/yxxbc/downvid) 二次开发。新版官网已更名 Framekeep，域名待定，使用 `pnpm website:build` 与 `pnpm website:preview` 本地预览。客户端当前仍沿用上游名称，尚未发布独立品牌安装包。下方保留上游使用文档，其中原项目网站、发行包及统计均属于上游。官网维护见 [website/README.md](website/README.md)，SEO 与素材记录见 [docs/website-seo.md](docs/website-seo.md)。
+
 <div align="center">
 
 <table>

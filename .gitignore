@@ -65,3 +65,7 @@ Thumbs.db
 *.tsbuildinfo
 .vercel
 .env*
+
+# 本地调研与官网构建产物
+work/
+website/dist/

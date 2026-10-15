@@ -15,8 +15,8 @@
 
 export const APP = {
   name: 'DownVid',
-  owner: 'yxxbc',
-  repo: 'downvid',
+  owner: 'oiov',
+  repo: 'download',
 } as const
 
 const GITHUB = 'https://github.com'

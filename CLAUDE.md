@@ -24,7 +24,7 @@ pnpm test:settings:migration # settings defaults/merge and the "no bypass" stati
 pnpm test:package           # unpacked-artifact contents (needs a prior --dir build)
 pnpm lint:ipc               # static check of the hand-maintained IPC wiring
 pnpm lint:icons             # icon names must be valid (a typo renders as literal text)
-pnpm lint:website           # landing page: single file, assets, i18n pairs, theme colors
+pnpm lint:website           # website: bilingual pages, assets, links, SEO modes
 pnpm lint:docs              # AGENTS.md ↔ CLAUDE.md parity + referenced paths/numbers exist
 pnpm deps:manifest:check    # is the dependency manifest behind upstream?
 pnpm build                  # vue-tsc && vite build && electron-builder (current platform)
@@ -110,7 +110,7 @@ and a **Go sidecar** (detects and installs yt-dlp / ffmpeg). They talk over IPC 
 | `src/` | Vue 3 renderer (`<script setup>`, Tailwind v4, Pinia) | `dist/` |
 | `shared/app.ts` | **single source** of repo coordinates and external links | imported by all three |
 | `tests/` | Vitest pure-logic tests | — |
-| `website/` | landing page (single file, no build; published by Vercel's Git integration) | — |
+| `website/` | static website (Node generation, separate language URLs) | — |
 | `scripts/` | manifest generation, sidecar build, IPC / website lint, release notes | — |
 
 Both Electron processes are built by `vite-plugin-electron/simple` from one `vite.config.ts`;
@@ -186,31 +186,20 @@ Names are referenced by older clients' `latest*.yml`. Renaming `DownVid-Setup-*`
 can't read — `lint:ipc` cross-checks it. Moving repos means editing `shared/app.ts` + `publish` +
 workflow references, all three.
 
-### 7. Landing page (`website/`)
+### 7. 产品官网（website/）
 
-One file, `website/index.html`, **no build step**, published straight from `main` by the Git
-integration of the Vercel project `downvid` (`vercel.json` sets `outputDirectory: "website"`,
-site at <https://downvid-coral.vercel.app>). GitHub Pages is **no longer used**: the repo never
-had Pages enabled in Settings, so `actions/configure-pages` only ever failed with
-`Get Pages site failed` — that workflow is gone, and `pnpm lint:website` (frontend job of all three
-`ci-*.yml`) does the checks instead.
+官网现在使用无第三方依赖的 Node 静态生成器，中文与英文拥有独立 URL。
+用户授权的 SEO 重构替代原先单文件与官网配色同步约定；桌面应用主题保持独立。
 
-Four silent-failure traps, all covered by `lint:website`:
-
-- **Referenced repo assets** (og:image, favicon, screenshots) use absolute
-  `raw.githubusercontent.com/<owner>/<repo>/main/...` URLs — rename or delete a file and the
-  live page shows a broken image with no local signal
-- **i18n keys must pair both ways**: `data-i18n` placeholders ↔ `I18N.en` entries; a missing
-  English entry silently keeps showing Chinese
-- **Colors are copied by hand**: `--primary` etc. in the page's `:root` must match the
-  `@theme` block in `src/style.css`
-- **Zero dependencies**: nothing but Google Fonts may be linked (`.vercelignore` excludes source
-  dirs only — it validates nothing)
-- **The download count is a static number**: "Downloaded N times" in the hero is refreshed by
-  `pnpm website:stats` — no shields.io badge, no client-side fetch (rationale in
-  `website/README.md`). Run it after a release.
-
----
+- 内容：`website/content.mjs`；品牌、域名与发布状态：`website/config.mjs`。
+- 生成：`scripts/build-website.mjs`；预览：`scripts/serve-website.mjs`。
+- 运行 pnpm website:build、pnpm lint:website；部署输出目录为 website/dist。
+- SITE_URL 或配置中的 origin 为空时输出 noindex、空 sitemap，不输出占位域名。
+- Vercel 预览及 SITE_PREVIEW=1 始终 noindex；生产 URL 统一尾斜杠。
+- 双语正文、canonical、hreflang、站点地图、内链必须一起维护。
+- 资源放 website/assets，不依赖原仓库 raw URL；不编造评分和下载量。
+- 新仓库发布安装包后才把 releaseAvailable 改为 true；上游下载入口必须标注来源。
+- 详细发布和维护流程见 `website/README.md`。
 
 ### Runtime dependencies (yt-dlp / ffmpeg)
 

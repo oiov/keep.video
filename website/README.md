@@ -1,76 +1,33 @@
-# 产品官网（Vercel 静态托管）
+# Framekeep 产品网站
 
-单文件静态落地页，**一个发布目标**：
+独立中文与英文 URL 的静态网站；仅使用 Node 内置模块生成，浏览器不需要执行 JavaScript。
 
-- **Vercel**：<https://downvid-coral.vercel.app>（`vercel.json` 指定 `outputDirectory: "website"`，
-  全球 Edge CDN 加速；项目 `downvid` 已连上 GitHub 仓库，推送 `main` 自动部署）
+## 开发
 
-GitHub Pages **不再使用**：仓库从未在 Settings → Pages 里选过源（`has_pages=false`），
-`actions/configure-pages` 因此只会稳定报 `Get Pages site failed`。那个工作流
-（`.github/workflows/pages.yml`）已删除，不要再恢复——恢复后又会红叉，除非有人先去网页设置里启用 Pages。
+- pnpm website:build：生成 website/dist（不提交构建产物）。
+- pnpm website:preview：在 http://127.0.0.1:4179 预览，包含正确的 404 和尾斜杠跳转。
+- pnpm lint:website：验证双语页面、SEO 模式、资源和内部链接。
 
-## 为什么是单文件
+## 内容与设计
 
-整站就是一个 `index.html`（样式与脚本内联）：无构建步骤、无依赖、改完直接推。这类
-落地页的寿命比应用长，越少维护成本越好。**不要**为了它引入打包工具。
+- website/config.mjs：产品名、正式域名、仓库及安装包发布状态。
+- website/content.mjs：四篇指南的独立中英内容。
+- scripts/build-website.mjs：首页、下载中心、指南模板及 SEO 输出。
+- website/assets/site.css：响应式视觉样式；与桌面客户端主题独立。
+- website/assets/hero-cinema.webp、video-ocean.webp、audio-still.webp：当前复用用户 nb-gen 项目已有 AI 素材；来源与生成状态见 docs/website-seo.md。
+- website/assets/app-preview.png：继承自上游的当前客户端截图，保留 MIT 许可。
+- website/assets/social.png：1200 × 630 网站分享预览。
 
-## 目录
+目录包括首页、download、guides，以及 getting-started、audio、subtitles、troubleshooting 四篇指南。中文在根目录，完整英文对应在 /en/。普通链接、FAQ、目录在无 JavaScript 时均可操作。
 
-```
-website/
-├── index.html      # 全部内容（HTML + 内联 CSS/JS）
-└── README.md       # 本文件
-```
+## 域名与发布
 
-## 部署
+域名暂未确定。配置文件 origin 留空；也可以在部署环境设置 SITE_URL=https://你的正式域名。仅接受不含路径的 HTTPS origin。部署到 Vercel 时使用根目录 vercel.json，构建不安装桌面依赖。
 
-推送 `main` 即发布（Vercel 的 Git 集成，命中 `website/**` 或 `vercel.json` 时重建）。
-本地预览：
+没有正式域名时，页面输出 noindex,follow、空 sitemap，并省略 canonical/hreflang/og:url。允许抓取以便搜索引擎读取 noindex。配置正式域名后，生产构建输出 canonical、相互对应的 hreflang 和完整 sitemap。VERCEL_ENV=preview 或 SITE_PREVIEW=1 始终禁用收录，即使已设置生产域名。
 
-```bash
-pnpm exec vercel dev      # 或直接 open website/index.html
-```
+上线后提交 /sitemap.xml 到 Search Console，检查首页、英文页与一篇指南的实时抓取；不承诺排名和流量。不要把临时预览 URL 填到 SITE_URL。
 
-`vercel.json` 把 `buildCommand` / `installCommand` 覆盖成 `echo`，避免 Vercel 误判为 Vite
-项目后去跑 Electron 构建；`cleanUrls: true` 让 `/index.html` 与 `/` 等价。
-`.vercelignore` 排除 `backend/ electron/ src/ tests/ docs/`，部署体积只有几百字节。
+新仓库尚无安装包，releaseAvailable=false 时明确提供上游版本入口。完成独立安装包发布、更新源和安装验证后，才设为 true。下载链接指向对应 Releases 页面，不猜测产物文件名。
 
-## 校验
-
-推送前跑一次 `pnpm lint:website`（CI 的 frontend job 也会跑）。它拦的是**本地看不出来、
-线上才会出现**的四类问题：
-
-| 检查 | 不管会怎样 |
-| --- | --- |
-| 引用的仓库资源存在（og:image / favicon / 截图） | 文件改名后线上裂图，本地无提示 |
-| 中英词条**双向**成对（`data-i18n` ↔ `I18N.en`） | 缺英文的条目切到英文仍显示中文 |
-| 配色与 `src/style.css` 的 `@theme` 一致 | 官网与应用颜色渐渐不像一家人 |
-| 零依赖（除 Google Fonts 外无外链脚本/样式） | 「无构建、无依赖」的前提被悄悄破坏 |
-| 下载量标记格式（`<b data-download-count>N</b>`） | 刷新脚本找不到落点，数字再也更新不了 |
-
-## 下载量
-
-hero 里的「已被下载 N 次」是**静态数字**，取 GitHub Releases 全部产物 `download_count` 之和：
-
-```bash
-pnpm website:stats     # 从 GitHub API 汇总并写回 index.html
-```
-
-**刻意不做实时拉取**，两条理由：
-
-1. 官网约定零第三方依赖，不引 shields.io 的图片请求（国内还可能加载失败）
-2. 未认证的 GitHub API 限额是 **60 次/小时且按出口 IP 共享**（1.3.3 的贡献者列表 403
-   事故就是它），前端 fetch 得为 403 写一套降级 UI，不值得
-
-代价是数字会停在**上次刷新的时刻**。发布新版后顺手跑一次即可；`lint:website` **不**比对
-数字是否最新——它分钟级在动（写这段时的实测：几分钟内自己涨了十几次），放进 CI 必然随机红。
-
-## 约定
-
-- **配色取自应用本身**（`src/style.css` 的 `@theme`）：主色 `#8c5100`、强调色
-  `#ff9800`、背景 `#fff8f4`。改色时两边一起改（`lint:website` 会比对）。
-- **文案与 README 保持一致**：功能、平台支持、依赖说明都以 README 为准。
-  落地页可以更精简，但不能出现 README 里没有的承诺。
-- **下载链接指向 Releases 页面**，不写死具体产物名 —— 产物名随版本变化，
-  写死会变成死链（`scripts/gen-release-notes.mjs` 已用扫描方式规避同样的问题）。
-- 中英双语切换是纯前端实现（读 `?lang=` 或浏览器语言），无后端。
+品牌调整需要同步官网配置、截图分享图及客户端品牌；Git 仓库、客户端 shared/app.ts 与 electron-builder.json5 的更新源已指向 oiov/download。原有 website:stats 是上游单页工具，现已改为明确报错，防止把上游累计下载量当成本项目数据。

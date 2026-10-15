@@ -64,7 +64,9 @@
     "test:issue:triage": "node scripts/test-issue-triage.mjs",
     "lint:i18n": "node scripts/lint-i18n.mjs",
     "verify:release": "node scripts/verify-release.mjs",
-    "lint:workflows": "node scripts/lint-workflows.mjs"
+    "lint:workflows": "node scripts/lint-workflows.mjs",
+    "website:build": "node scripts/build-website.mjs",
+    "website:preview": "node scripts/serve-website.mjs"
   },
   "dependencies": {
     "@material-symbols/font-400": "^0.48.0",
