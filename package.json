@@ -27,7 +27,11 @@
     "视频下载器",
     "无水印下载"
   ],
-  "author": "oiov",
+  "author": {
+    "name": "oiov",
+    "email": "166131050+oiov@users.noreply.github.com",
+    "url": "https://github.com/oiov"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc && vite build && electron-builder --publish never --config electron-builder.json5",
