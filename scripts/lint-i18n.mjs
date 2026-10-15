@@ -145,7 +145,7 @@ if (unused.length) {
 //   - 代码注释、模板注释（<!-- -->）
 //   - 平台名 / 文件名等专有名词（用白名单词表）
 const ALLOWED_LITERALS = [
-  'yt-dlp', 'ffmpeg', 'ffprobe', 'Framekeep', 'aria2c', 'Chrome', 'Edge', 'Firefox', 'Safari',
+  'yt-dlp', 'ffmpeg', 'ffprobe', 'Keep Video', 'aria2c', 'Chrome', 'Edge', 'Firefox', 'Safari',
   'Brave', 'Windows', 'macOS', 'Linux', 'YouTube', 'B站', '抖音', '快手', '小红书', '微信',
   'Cookies', 'Cookie', 'MP4', 'ID', 'GitHub', '简体中文', 'English',
   // 下列不是界面文案，而是**协议/契约标记**：不能翻译，翻译了匹配就会失效

@@ -72,7 +72,7 @@ const unpacked = findUnpackedDir()
  * 定位真正的 Resources 目录。
  *
  * 各平台布局不同，写死 `<dir>/resources` 会让 macOS 上所有检查都假失败：
- *   - macOS  ：<解包目录>/Framekeep.app/Contents/Resources
+ *   - macOS  ：<解包目录>/KeepVideo.app/Contents/Resources
  *   - Windows：<解包目录>/resources
  *   - Linux  ：<解包目录>/resources
  */
@@ -214,8 +214,8 @@ suite.case('版本号与 package.json 一致', async (t) => {
     }
   } else if (platform.isWindows) {
     // Windows 版本号在 exe 资源里，不便静态解析；改校验产物名
-    const exe = findFile(unpacked, (f) => /Framekeep\.exe$/i.test(f))
-    t.ok(exe, '应能找到 Framekeep.exe')
+    const exe = findFile(unpacked, (f) => /KeepVideo\.exe$/i.test(f))
+    t.ok(exe, '应能找到 KeepVideo.exe')
   } else {
     const pkgType = path.join(resourcesDir(), 'package-type')
     if (fs.existsSync(pkgType)) {

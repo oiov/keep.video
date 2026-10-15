@@ -93,7 +93,7 @@ export function getSidecarPath(): string | null {
   return null
 }
 
-/** Framekeep 自己下载的依赖存放目录 */
+/** Keep Video 自己下载的依赖存放目录 */
 export function getManagedDir(): string {
   return path.join(app.getPath('userData'), 'runtime', 'bin')
 }
@@ -125,7 +125,7 @@ function runSidecar(args: string[], timeoutMs = 90_000): Promise<SidecarRun> {
   return new Promise((resolve, reject) => {
     const bin = getSidecarPath()
     if (!bin) {
-      reject(new Error('未找到依赖管理组件 (downvid-deps)，请重新安装 Framekeep'))
+      reject(new Error('未找到依赖管理组件 (downvid-deps)，请重新安装 Keep Video'))
       return
     }
 
@@ -234,7 +234,7 @@ export function downloadDeps(
   return new Promise((resolve) => {
     const bin = getSidecarPath()
     if (!bin) {
-      resolve({ ok: false, error: '未找到依赖管理组件 (downvid-deps)，请重新安装 Framekeep' })
+      resolve({ ok: false, error: '未找到依赖管理组件 (downvid-deps)，请重新安装 Keep Video' })
       return
     }
 

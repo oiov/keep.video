@@ -11,7 +11,13 @@ const files=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirecto
 try {
  build({SITE_URL:'https://seo-check.test'})
  const pages=files(out).filter(f=>f.endsWith('index.html'))
- assert.equal(pages.length,14)
+ assert.equal(pages.length,24)
+ for(const platform of ['youtube','bilibili','tiktok','instagram','vimeo']) for(const prefix of ['', 'en/']) {
+  const html=fs.readFileSync(path.join(out,prefix+platform+'-video-downloader/index.html'),'utf8')
+  assert(html.includes('support@keep.video'))
+  assert(html.includes('yt-dlp supported sites'))
+ }
+ assert(fs.readFileSync(path.join(out,'llms.txt'),'utf8').includes('support@keep.video'))
  const titles=new Set(), descriptions=new Set()
  for(const file of pages){
   const html=fs.readFileSync(file,'utf8')
@@ -41,7 +47,7 @@ try {
   }
  }
  const sitemap=fs.readFileSync(path.join(out,'sitemap.xml'),'utf8')
- assert.equal((sitemap.match(/<loc>/g)||[]).length,14)
+ assert.equal((sitemap.match(/<loc>/g)||[]).length,24)
  assert(fs.readFileSync(path.join(out,'robots.txt'),'utf8').includes('Sitemap: https://seo-check.test/sitemap.xml'))
  const social=fs.readFileSync(path.join(out,'assets/social.png'))
  assert.equal(social.readUInt32BE(16),1200);assert.equal(social.readUInt32BE(20),630)
@@ -57,5 +63,5 @@ try {
  assert(!preview.includes('hreflang="x-default"'))
  assert(!fs.readFileSync(path.join(out,'sitemap.xml'),'utf8').includes('<loc>'))
  for(const invalid of ['http://site.test','https://site.test/path','https://site.test?key=a','https://user:password@site.test','https://example.com'])assert.throws(()=>build({SITE_URL:invalid}))
- console.log('官网校验通过：14 个双语页面、独立元数据、语言回链、JSON-LD、资源、生产/预览模式与域名校验。')
+ console.log('官网校验通过：24 个双语页面、独立元数据、语言回链、JSON-LD、资源、生产/预览模式与域名校验。')
 } finally {execFileSync(process.execPath,['scripts/build-website.mjs'],{cwd:root,stdio:'pipe'})}

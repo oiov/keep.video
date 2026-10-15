@@ -24,7 +24,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Framekeep Version
+      label: Keep Video Version
       placeholder: e.g., 1.0.0 (check in About page)
     validations:
       required: true

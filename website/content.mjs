@@ -2,9 +2,9 @@
 export const guides = [
   {
     slug: 'getting-started', category: ['开始使用', 'GETTING STARTED'],
-    title: ['第一次使用 Framekeep：从安装到下载', 'Your first download with Framekeep'],
-    description: ['了解 Framekeep 桌面视频下载器的安装、运行依赖、链接解析和文件保存步骤，适用于 macOS、Windows 和 Linux。', 'Install Framekeep, prepare its runtime tools, choose a format and save your first video on macOS, Windows or Linux.'],
-    intro: ['Framekeep 在你的电脑上运行。网页提供介绍与下载入口，视频解析、文件保存和格式转换由桌面客户端完成。', 'Framekeep runs on your computer. This website provides information and download links; the desktop app handles parsing, saving and conversion.'],
+    title: ['第一次使用 Keep Video：从安装到下载', 'Your first download with Keep Video'],
+    description: ['了解 Keep Video 桌面视频下载器的安装、运行依赖、链接解析和文件保存步骤，适用于 macOS、Windows 和 Linux。', 'Install Keep Video, prepare its runtime tools, choose a format and save your first video on macOS, Windows or Linux.'],
+    intro: ['Keep Video 在你的电脑上运行。网页提供介绍与下载入口，视频解析、文件保存和格式转换由桌面客户端完成。', 'Keep Video runs on your computer. This website provides information and download links; the desktop app handles parsing, saving and conversion.'],
     sections: [
       [['1. 选择适合电脑的安装包', '1. Choose the right installer'], ['macOS 用户在“关于本机”确认是 Apple 芯片还是 Intel，再选 ARM64 或 x64 的 DMG。Windows 使用 x64 安装包。Linux 根据发行版选择 AppImage 或 DEB，以发布页面实际提供的文件为准。', 'On macOS, check About This Mac for Apple silicon or Intel, then choose the ARM64 or x64 DMG. Use the x64 installer on Windows. On Linux, choose a compatible AppImage or DEB from the files offered in the release.']],
       [['2. 准备运行依赖', '2. Prepare the runtime tools'], ['首次打开时，应用会检查 yt-dlp 和 FFmpeg。缺失时按提示下载安装，或到“设置 → 运行依赖”查看状态。YouTube 还可能需要 Node.js 22+ 或 Deno 2.3+，目前需要自行安装。', 'At first launch, the app checks for yt-dlp and FFmpeg. Install missing tools from the prompt or inspect them in Settings → Runtime dependencies. YouTube may also require Node.js 22+ or Deno 2.3+, installed separately.']],
@@ -15,7 +15,7 @@ export const guides = [
   {
     slug: 'audio', category: ['音频工作流', 'AUDIO WORKFLOW'],
     title: ['如何从视频中保存 MP3 音频', 'How to save audio from a video as MP3'],
-    description: ['使用 Framekeep 的仅音频模式保存 MP3，了解 FFmpeg 转换、音质限制，以及解析或转换失败时的检查方法。', 'Save an MP3 with audio-only mode in Framekeep. Understand FFmpeg conversion, source quality and what to check if conversion fails.'],
+    description: ['使用 Keep Video 的仅音频模式保存 MP3，了解 FFmpeg 转换、音质限制，以及解析或转换失败时的检查方法。', 'Save an MP3 with audio-only mode in Keep Video. Understand FFmpeg conversion, source quality and what to check if conversion fails.'],
     intro: ['做听力练习、整理自己的访谈或离线收听已获授权的内容时，可以只保存音频，减少不需要的视频文件。', 'For listening practice, your own interviews or licensed offline listening, keep the sound without an unnecessary video file.'],
     sections: [
       [['选择仅音频模式', 'Choose audio-only mode'], ['在客户端解析链接，核对标题，再选择“仅音频（MP3）”。此功能提取来源音频，不会分离人声与背景音乐，也不会提升原始录音质量。', 'Parse the URL, check the title and choose Audio only (MP3). This extracts source audio; it does not separate vocals from music or improve the original recording.']],
@@ -27,7 +27,7 @@ export const guides = [
   {
     slug: 'subtitles', category: ['字幕工作流', 'SUBTITLE WORKFLOW'],
     title: ['如何单独下载视频字幕（SRT）', 'How to download video subtitles as SRT'],
-    description: ['使用 Framekeep 保存来源已有的字幕，了解字幕模式、语言可用性、SRT 文件与视频同步，以及没有字幕时的限制。', 'Save available subtitle tracks with Framekeep. Learn about subtitle mode, language availability, SRT timing and missing captions.'],
+    description: ['使用 Keep Video 保存来源已有的字幕，了解字幕模式、语言可用性、SRT 文件与视频同步，以及没有字幕时的限制。', 'Save available subtitle tracks with Keep Video. Learn about subtitle mode, language availability, SRT timing and missing captions.'],
     intro: ['只需要阅读文本或整理学习资料时，可以单独保存字幕。字幕模式使用来源已有的字幕轨道，不会把没有字幕的视频自动转写成文字。', 'Save subtitles separately for reading or study. Subtitle mode uses tracks already available from the source; it does not transcribe videos without captions.'],
     sections: [
       [['选择仅字幕模式', 'Choose subtitles-only mode'], ['在客户端选择仅字幕（SRT）模式，粘贴并解析视频链接。仅字幕模式不要求 FFmpeg，但仍需要可用的 yt-dlp。可用语言取决于具体视频。', 'Choose Subtitles only (SRT), then paste and parse the URL. This mode needs a working yt-dlp installation but does not require FFmpeg. Available languages depend on the video.']],
@@ -39,7 +39,7 @@ export const guides = [
   {
     slug: 'troubleshooting', category: ['故障排查', 'TROUBLESHOOTING'],
     title: ['视频下载失败？按阶段定位原因', 'Video download failed? Find the failing stage'],
-    description: ['排查 Framekeep 链接解析、登录验证、B 站 412、Cookie 读取、FFmpeg 合并与依赖安装问题，按阶段找到下一步。', 'Troubleshoot Framekeep parsing, login checks, Bilibili 412 responses, cookie access and FFmpeg merging by finding the failing stage.'],
+    description: ['排查 Keep Video 链接解析、登录验证、B 站 412、Cookie 读取、FFmpeg 合并与依赖安装问题，按阶段找到下一步。', 'Troubleshoot Keep Video parsing, login checks, Bilibili 412 responses, cookie access and FFmpeg merging by finding the failing stage.'],
     intro: ['先分清问题发生在解析、下载还是合并阶段。不同阶段依赖不同工具，一直重复点击下载往往不能解决根因。', 'First identify whether parsing, downloading or merging failed. Each stage depends on different tools; repeatedly starting the task rarely fixes its cause.'],
     sections: [
       [['链接没有解析成功', 'The URL has not parsed'], ['使用完整的视频页面 URL，去掉分享文案。确认内容仍存在且你的账号可访问，再检查 yt-dlp 版本。网站改版可能导致暂时不支持，支持列表不保证每个视频始终可下载。', 'Use the complete video-page URL without share text. Confirm the content exists and your account can access it, then check yt-dlp. Website changes can temporarily break support; a supported site does not guarantee every video works.']],

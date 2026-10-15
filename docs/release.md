@@ -1,6 +1,6 @@
 # 发布流程与版本策略
 
-本文档是 Framekeep 的发布契约。**改动发布相关配置前请先读完**——这里的每一条约束都对应过一次真实事故。
+本文档是 Keep Video 的发布契约。**改动发布相关配置前请先读完**——这里的每一条约束都对应过一次真实事故。
 
 ## 版本语义
 
@@ -17,7 +17,7 @@
 ### 属于 MAJOR 的典型改动
 
 - 更换 GitHub 仓库、组织，或改变发布渠道（`electron/constants.ts`、`electron-builder.json5` 的 `publish`）
-- 改产物命名规则（`Framekeep-Setup-*` 等，见下文"产物命名契约"）
+- 改产物命名规则（`Keep Video-Setup-*` 等，见下文"产物命名契约"）
 - 更换更新清单的文件名或结构（`latest.yml` / `latest-mac.yml` / `latest-linux*.yml`）
 - 提高最低系统版本要求（如放弃 macOS 12、Windows 10 以下）
 - 移除或重命名 `localStorage['settings']` 中的字段（老用户设置会丢失）
@@ -82,11 +82,11 @@ git tag -d v1.3.0 && git push origin :refs/tags/v1.3.0
 
 | 平台 | 产物名 |
 | --- | --- |
-| Windows 安装包 | `Framekeep-Setup-<version>.exe` |
-| Windows 便携版 | `Framekeep-Portable-<version>.exe` |
-| macOS | `Framekeep-<arch>-Mac-<version>.<dmg\|zip>`（如 `Framekeep-arm64-Mac-1.2.1.dmg`） |
-| Linux x64 | `Framekeep-x86_64-Linux-<version>.AppImage` / `Framekeep-amd64-Linux-<version>.deb` / `.rpm` |
-| Linux arm64 | `Framekeep-arm64-Linux-<version>.AppImage` |
+| Windows 安装包 | `Keep Video-Setup-<version>.exe` |
+| Windows 便携版 | `Keep Video-Portable-<version>.exe` |
+| macOS | `Keep Video-<arch>-Mac-<version>.<dmg\|zip>`（如 `Keep Video-arm64-Mac-1.2.1.dmg`） |
+| Linux x64 | `Keep Video-x86_64-Linux-<version>.AppImage` / `Keep Video-amd64-Linux-<version>.deb` / `.rpm` |
+| Linux arm64 | `Keep Video-arm64-Linux-<version>.AppImage` |
 | 更新清单 | `latest.yml`（Windows）、`latest-mac.yml`（macOS）、`latest-linux.yml`、`latest-linux-arm64.yml` |
 
 这些规则定义在 `electron-builder.json5` 的 `artifactName`。**Linux 用 `amd64`/`x86_64` 而不是 `x64`**，与 electron-builder 的 `${arch}` 取值不同，是历史约定。
@@ -119,7 +119,7 @@ README 顶部目前有 Downloads / Release / Stars / License / Product Hunt。�
 
 | 资源类型 | 是否代表装机 | 说明 |
 | --- | --- | --- |
-| `Framekeep-Setup-*` / `*Portable*` / `.dmg` / `.deb` / `.rpm` / `.tar.gz` / `AppImage` | ✅ 近似代表 | 用户主动下载安装 |
+| `Keep Video-Setup-*` / `*Portable*` / `.dmg` / `.deb` / `.rpm` / `.tar.gz` / `AppImage` | ✅ 近似代表 | 用户主动下载安装 |
 | `*.zip` / `*-Mac-*.zip` | ⚠️ 含自动更新 | macOS 自动更新也走 zip |
 | `*.blockmap` | ❌ 只是更新差分 | **仅自动更新时下载**，是存量用户升级，不是新增 |
 | `latest*.yml` | ❌ 只是清单 | **每次检查更新都会请求**，占总量的大头 |

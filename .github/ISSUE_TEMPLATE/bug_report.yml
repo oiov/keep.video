@@ -26,7 +26,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Framekeep 版本号
+      label: Keep Video 版本号
       placeholder: 例: 1.0.0（在「关于」页面查看）
     validations:
       required: true

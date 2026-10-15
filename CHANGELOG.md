@@ -1,5 +1,11 @@
 # 更新日志
 
+## [1.0.1] - 2026-10-15
+
+- 网站与应用展示名称更新为 Keep Video，正式域名 keep.video。
+- 新增 YouTube、Bilibili、TikTok、Instagram、Vimeo 双语下载指南与平台入口。
+- 保留现有应用数据标识，延续原有更新渠道。
+
 ## [1.0.0] - 2026-10-15
 
 - 首次发布 Framekeep：独立应用名称、Logo、安装包标识与下载目录。

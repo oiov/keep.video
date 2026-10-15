@@ -19,3 +19,5 @@
 @media(max-width:760px){.hero-art{object-position:63% 50%;opacity:.55}.hero-shade{background:linear-gradient(90deg,#f5f3edf0,#f5f3ed55)}.hero-content{position:relative}.hero h1{font-size:clamp(43px,8.5vw,64px)}}
 
 .mini-landscape{transform:none}.audio .feature-art{background:url(/assets/audio-frame-light.webp) center/cover}.feature-art .format{background:#ffffff8c;color:#43514c;border-color:#43514c33}.play{display:none}
+
+.platform-strip a{font-weight:600}.footer-bottom{flex-wrap:wrap;gap:1rem}.article a{overflow-wrap:anywhere}

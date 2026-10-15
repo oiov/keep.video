@@ -88,7 +88,7 @@ const ISSUE_60 = `### Platform
 
 macOS (Apple Silicon)
 
-### Framekeep Version
+### KeepVideo Version
 
 dadas
 
@@ -172,7 +172,7 @@ suite.case('填写完整的模板 Issue 不能关', async (t) => {
 
 Windows 11
 
-### Framekeep Version
+### KeepVideo Version
 
 1.3.4
 

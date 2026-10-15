@@ -1,10 +1,10 @@
-# Framekeep
+# Keep Video
 
 An open-source desktop app for saving video, audio and subtitles on macOS, Windows and Linux.
 
 [简体中文](README.zh-CN.md) · [Download](https://github.com/oiov/download/releases) · [Report an issue](https://github.com/oiov/download/issues)
 
-![Framekeep](website/assets/app-preview.png)
+![Keep Video](website/assets/app-preview.png)
 
 ## Features
 

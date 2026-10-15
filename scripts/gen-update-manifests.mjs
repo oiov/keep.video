@@ -59,16 +59,16 @@ function writeManifest(name, patterns) {
 }
 
 const v = version.replace(/\./g, '\\.')
-writeManifest('latest.yml', [new RegExp(`^Framekeep-Setup-${v}\\.exe$`)])
+writeManifest('latest.yml', [new RegExp(`^KeepVideo-Setup-${v}\\.exe$`)])
 writeManifest('latest-mac.yml', [
-  new RegExp(`^Framekeep-arm64-Mac-${v}\\.zip$`),
-  new RegExp(`^Framekeep-x64-Mac-${v}\\.zip$`),
-  new RegExp(`^Framekeep-arm64-Mac-${v}\\.dmg$`),
-  new RegExp(`^Framekeep-x64-Mac-${v}\\.dmg$`),
+  new RegExp(`^KeepVideo-arm64-Mac-${v}\\.zip$`),
+  new RegExp(`^KeepVideo-x64-Mac-${v}\\.zip$`),
+  new RegExp(`^KeepVideo-arm64-Mac-${v}\\.dmg$`),
+  new RegExp(`^KeepVideo-x64-Mac-${v}\\.dmg$`),
 ])
 writeManifest('latest-linux.yml', [
-  new RegExp(`^Framekeep-x86_64-Linux-${v}\\.AppImage$`),
-  new RegExp(`^Framekeep-amd64-Linux-${v}\\.deb$`),
-  new RegExp(`^Framekeep-x86_64-Linux-${v}\\.rpm$`),
+  new RegExp(`^KeepVideo-x86_64-Linux-${v}\\.AppImage$`),
+  new RegExp(`^KeepVideo-amd64-Linux-${v}\\.deb$`),
+  new RegExp(`^KeepVideo-x86_64-Linux-${v}\\.rpm$`),
 ])
-writeManifest('latest-linux-arm64.yml', [new RegExp(`^Framekeep-arm64-Linux-${v}\\.AppImage$`)])
+writeManifest('latest-linux-arm64.yml', [new RegExp(`^KeepVideo-arm64-Linux-${v}\\.AppImage$`)])

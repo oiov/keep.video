@@ -1,7 +1,7 @@
 /**
  * 运行依赖（yt-dlp / ffmpeg）的共享类型。
  *
- * Framekeep 不再随安装包分发二进制：启动时探测机器上已安装的版本并直接复用，
+ * Keep Video 不再随安装包分发二进制：启动时探测机器上已安装的版本并直接复用，
  * 探测不到时由用户点击按钮触发下载（主进程调用 Go 边车完成）。
  * 这里定义的类型同时被 preload、env.d.ts 与渲染进程使用。
  */
@@ -21,7 +21,7 @@ export interface DepStatus {
   source?: DepSource
   /** 未找到时的原因，直接展示给用户 */
   reason?: string
-  /** 由 Framekeep 下载并托管，可安全覆盖更新 */
+  /** 由 Keep Video 下载并托管，可安全覆盖更新 */
   managed?: boolean
   /** 当前清单要求的最低版本；界面据此判断「是否真的该提示更新」 */
   requiredVersion?: string

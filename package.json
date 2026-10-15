@@ -1,13 +1,13 @@
 {
   "name": "framekeep",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "engines": {
     "node": ">=22",
     "pnpm": ">=8"
   },
-  "description": "Framekeep — 保存视频、音频与字幕的开源桌面工具",
+  "description": "Keep Video — YouTube、Bilibili、TikTok、Instagram、Vimeo 桌面视频下载工具",
   "keywords": [
     "video-downloader",
     "yt-dlp",

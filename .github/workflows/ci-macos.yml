@@ -191,9 +191,9 @@ jobs:
       - name: 确认产物未签名（identity 为 null 的预期结果）
         shell: bash
         run: |
-          APP=$(find release -maxdepth 3 -name 'Framekeep.app' -type d | sort -V | tail -1)
+          APP=$(find release -maxdepth 3 -name 'KeepVideo.app' -type d | sort -V | tail -1)
           if [ -z "$APP" ]; then
-            echo "::error::在 release 下找不到 Framekeep.app"
+            echo "::error::在 release 下找不到 KeepVideo.app"
             find release -maxdepth 3 | head -20
             exit 1
           fi
@@ -209,7 +209,7 @@ jobs:
       - name: 边车可执行且架构正确
         shell: bash
         run: |
-          # 路径形如 release/<版本>/<arch>/Framekeep.app/Contents/Resources/downvid-deps，
+          # 路径形如 release/<版本>/<arch>/KeepVideo.app/Contents/Resources/downvid-deps，
           # 深度 7 层，maxdepth 必须够
           SIDECAR=$(find release -maxdepth 8 -name downvid-deps -type f | sort -V | tail -1)
           if [ -z "$SIDECAR" ]; then
@@ -228,9 +228,9 @@ jobs:
       - name: Info.plist 版本与 package.json 一致
         shell: bash
         run: |
-          APP=$(find release -maxdepth 3 -name 'Framekeep.app' -type d | sort -V | tail -1)
+          APP=$(find release -maxdepth 3 -name 'KeepVideo.app' -type d | sort -V | tail -1)
           if [ -z "$APP" ]; then
-            echo "::error::在 release 下找不到 Framekeep.app"
+            echo "::error::在 release 下找不到 KeepVideo.app"
             exit 1
           fi
           PLIST_VERSION=$(/usr/libexec/PlistBuddy -c "Print CFBundleShortVersionString" "$APP/Contents/Info.plist")

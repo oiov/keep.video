@@ -10,10 +10,10 @@
       <div class="bg-linear-to-br from-primary/5 to-secondary/5 rounded-2xl p-6 mb-6 border border-outline-variant/10">
         <div class="flex items-center gap-4">
           <div class="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
-            <img src="@/assets/logo.png" alt="Framekeep" class="w-full h-full object-contain" />
+            <img src="@/assets/logo.png" alt="Keep Video" class="w-full h-full object-contain" />
           </div>
           <div class="flex-1 min-w-0">
-            <h2 class="font-headline text-xl font-bold text-on-surface">Framekeep</h2>
+            <h2 class="font-headline text-xl font-bold text-on-surface">Keep Video</h2>
             <p class="text-on-surface-variant text-sm mt-0.5">v{{ appVersion }}</p>
           </div>
           <button
@@ -63,6 +63,8 @@
           <MaterialIcon name="arrow_forward_ios" :size="14" class="text-on-surface-variant" />
         </button>
       </div>
+
+      <div class="space-y-3 mb-6 text-sm text-primary"><p><a href="https://keep.video" target="_blank" rel="noopener noreferrer">keep.video ↗</a></p><p><a href="mailto:support@keep.video">support@keep.video</a></p></div>
 
       <!-- 贡献者：固定名单（不请求 API、不显示提交次数） -->
       <div class="mb-6">
@@ -148,7 +150,7 @@
 
       <!-- Copyright -->
       <div class="text-center pt-4">
-        <p class="text-xs text-on-surface-variant/60">© 2026 Framekeep</p>
+        <p class="text-xs text-on-surface-variant/60">© 2026 Keep Video</p>
         <p class="text-xs text-on-surface-variant/40 mt-1">Based on DownVid (yxxbc) and <a href="https://github.com/cshuangyy/videdown" class="hover:underline">Videdown</a> by cshuangyy (MIT License)</p>
       </div>
     </div>

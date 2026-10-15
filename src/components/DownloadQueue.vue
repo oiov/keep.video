@@ -166,7 +166,7 @@ import type { DownloadTask } from '../types'
 const store = useDownloadStore()
 const { showError } = useErrorModal()
 
-// 预取主目录，让路径显示成 ~/Downloads/Framekeep 而不是暴露用户名
+// 预取主目录，让路径显示成 ~/Downloads/Keep Video 而不是暴露用户名
 void ensureHomeDir()
 
 const activeTaskCount = computed(() => store.activeTaskCount)

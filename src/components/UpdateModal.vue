@@ -87,7 +87,7 @@
             <div class="flex items-center gap-3 p-3.5 bg-primary/5 rounded-xl border border-primary/10 mb-4">
               <MaterialIcon name="new_releases" :size="22" class="text-primary shrink-0" />
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-semibold text-on-surface">Framekeep v{{ newVersion }}</p>
+                <p class="text-sm font-semibold text-on-surface">Keep Video v{{ newVersion }}</p>
                 <p class="text-xs text-on-surface-variant mt-0.5">
                   {{ manual ? manualReason || t('update.manualReason') : t('update.manualSuggestion') }}
                 </p>

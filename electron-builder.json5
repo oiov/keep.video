@@ -3,7 +3,7 @@
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
   "appId": "app.framekeep.desktop",
   "asar": true,
-  "productName": "Framekeep",
+  "productName": "KeepVideo",
   "icon": "build/icon.png",
   "directories": {
     "output": "release/${version}"
@@ -93,7 +93,7 @@
     // electron-builder 26 起 .desktop 条目需放在 desktop.entry 下
     "desktop": {
       "entry": {
-        "Name": "Framekeep",
+        "Name": "KeepVideo",
         "Comment": "全平台视频下载工具",
         "Categories": "Utility;AudioVideo;Network;"
       }

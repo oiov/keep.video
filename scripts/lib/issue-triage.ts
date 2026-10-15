@@ -175,7 +175,7 @@ function selfServiceHint(kind?: ParseErrorKind): string {
     case 'invalid-url':
       return '- **链接无效或不被支持**：请确认链接可直接在浏览器打开。注意部分站点（如微信视频号）目前不在支持范围内，属于已知边界而非缺陷。'
     case 'unsupported-url':
-      return '- **该站点不在支持范围**：Framekeep 基于 yt-dlp，支持站点见其 supportedsites 列表，属于已知边界而非缺陷。'
+      return '- **该站点不在支持范围**：KeepVideo 基于 yt-dlp，支持站点见其 supportedsites 列表，属于已知边界而非缺陷。'
     case 'runtime-unavailable':
       return '- **缺少 JS 运行时**：YouTube 解析需要 Node.js 22+ 或 Deno 2.3+，安装后重启应用即可。'
     case 'not-found':

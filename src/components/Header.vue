@@ -8,9 +8,9 @@
          （按钮占 x=16~68，78px 留 10px 余量），不要在这里用 v-if 隐藏，否则会空出一块。 -->
     <div class="flex items-center gap-3 text-on-surface shrink-0" style="-webkit-app-region: no-drag">
       <div class="size-6 rounded-md overflow-hidden bg-primary/10 flex items-center justify-center shrink-0">
-        <img src="@/assets/logo.png" alt="Framekeep" class="w-full h-full object-contain" />
+        <img src="@/assets/logo.png" alt="Keep Video" class="w-full h-full object-contain" />
       </div>
-      <h2 class="font-headline text-base font-bold leading-tail tracking-tight text-on-surface">Framekeep</h2>
+      <h2 class="font-headline text-base font-bold leading-tail tracking-tight text-on-surface">Keep Video</h2>
     </div>
     
     <!-- Navigation -->

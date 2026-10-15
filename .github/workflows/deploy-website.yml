@@ -1,4 +1,4 @@
-name: Deploy Framekeep Website
+name: Deploy KeepVideo Website
 on:
   workflow_dispatch:
   push:

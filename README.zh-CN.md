@@ -1,10 +1,10 @@
-# Framekeep
+# Keep Video
 
 把视频、音频与字幕保存到电脑的开源桌面工具，支持 macOS、Windows 和 Linux。
 
 [下载安装包](https://github.com/oiov/download/releases) · [反馈问题](https://github.com/oiov/download/issues)
 
-![Framekeep](website/assets/app-preview.png)
+![Keep Video](website/assets/app-preview.png)
 
 ## 功能
 

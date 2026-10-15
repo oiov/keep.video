@@ -3,6 +3,7 @@
   "name": "framekeep",
   "compatibility_date": "2026-10-15",
   "workers_dev": true,
+  "routes": [{ "pattern": "keep.video", "custom_domain": true }],
   "assets": {
     "directory": "./website/dist",
     "html_handling": "force-trailing-slash",

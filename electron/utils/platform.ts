@@ -15,7 +15,7 @@ export function isBilibiliUrl(url: string): boolean {
 }
 
 export function getDefaultDownloadDir(): string {
-  return path.join(os.homedir(), 'Downloads', 'Framekeep')
+  return path.join(os.homedir(), 'Downloads', 'Keep Video')
 }
 
 export function ensureDownloadDir(dir: string): string {

@@ -177,8 +177,8 @@ Settings live in `localStorage['settings']` (**not** Pinia). Fields: `downloadDi
 
 **5. Changing release artifacts → cuts off auto-update for existing users.**
 
-Names are referenced by older clients' `latest*.yml`. Renaming `Framekeep-Setup-*`,
-`Framekeep-Portable-*`, `Framekeep-<arch>-Mac-*`, `Framekeep-x86_64-Linux-*` breaks every installed copy.
+Names are referenced by older clients' `latest*.yml`. Renaming `Keep Video-Setup-*`,
+`Keep Video-Portable-*`, `Keep Video-<arch>-Mac-*`, `Keep Video-x86_64-Linux-*` breaks every installed copy.
 `lint:ipc` checks the `artifactName` entries. Linux uses `amd64`/`x86_64`, not `x64`.
 
 **6. Repo coordinates / links** live only in `shared/app.ts` (main re-exports via
@@ -207,7 +207,7 @@ workflow references, all three.
 A Go sidecar resolves them at startup, "prefer the machine's own, download only if missing":
 
 1. Paths set manually in settings (`localStorage['settings'].depPaths`) — **detection only**
-2. `userData/runtime/bin/` (Framekeep-installed, safe to overwrite)
+2. `userData/runtime/bin/` (Keep Video-installed, safe to overwrite)
 3. login shell `PATH` (GUI apps get a stripped `PATH`, so this step is essential) + per-platform
    common install dirs
 4. bare command names, left to `PATH`
