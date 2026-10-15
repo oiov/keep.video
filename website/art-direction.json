@@ -1,5 +1,17 @@
 [
- {"name":"hero-cinema","size":"2048x1152","prompt":"Ultra-premium cinematic 65mm film still for Framekeep, a video archiving desktop app. A solitary tiny traveler in a rust-orange jacket stands on the RIGHT THIRD of a huge dark rocky ridge, gazing over an immense sea of soft silver mist and layered deep teal mountains at dawn. A spectacular warm amber shaft of sunrise cuts through the clouds across the far RIGHT horizon. Tactile photoreal rock, atmospheric depth, restrained golden highlights, breathtaking sense of scale, realistic sophisticated photography, exquisite subtle film grain. LEFT HALF must remain very dark deep blue-black atmospheric negative space for large website typography, no foreground objects on left. Wide panoramic composition, richly cinematic not generic stock photography, not a drawing or polygon landscape. No text, no letters, no UI, no logo, no watermark."},
- {"name":"video-ocean","size":"1536x1024","prompt":"An exquisite cinematic wildlife still, enormous translucent deep blue ocean wave curls around a small lone surfer in a warm amber wetsuit positioned on the RIGHT, underwater light rays and delicate suspended water droplets frozen with absolute detail, strong abstract flowing composition, filmic high contrast, midnight teal and warm copper accents, beautiful tactile believable water, shot on 65mm cinema camera, premium art direction for video preservation software, evocative of a beautiful moment worth saving, sophisticated editorial photograph, no text no logo no watermark."},
- {"name":"audio-still","size":"1536x1024","prompt":"Museum quality editorial still life photograph for a premium desktop audio download tool: sculptural brushed aluminum over-ear headphones resting on a dark weathered stone block, one translucent amber glass disc stands vertically behind them like a sun, sharp sculptural shadows and subtle warm reflections, deep charcoal teal background, exceptionally tactile materials, asymmetric art direction, headphone subject toward right center, carefully controlled studio spotlight, premium analog listening atmosphere, restrained color palette of silver black and amber, medium format photography, no writing no logo no watermark."}
+  {
+    "name": "hero-frame-light",
+    "size": "2048x1152",
+    "prompt": "Premium minimalist editorial 3D product artwork for a media saving app. Warm off-white seamless studio. Arrangement in RIGHT HALF: three thin translucent frosted-glass rectangular picture frames float at slight angles like saved memories, a luminous apricot-orange glass square between them. One frame contains a soft abstract blue-silver color field, another a warm peach gradient. Brushed aluminum edges, exquisite tactile details, believable refraction, soft daylight, delicate shadows. LEFT HALF empty warm white negative space for dark typography. Airy, bright, calm, architectural still life, contemporary Swiss design, photoreal luxury product rendering. No landscapes, mountains, people, planets, neon, dark atmosphere, text, letters, UI, logos or watermark."
+  },
+  {
+    "name": "video-frame-light",
+    "size": "1536x1024",
+    "prompt": "Minimalist high-end editorial 3D still life on warm ivory seamless background. A thin brushed aluminum rectangular frame contains a luminous translucent peach glass play triangle, floating above a matte cream pedestal. Soft daylight, delicate shadows, tactile premium materials, spacious restrained design, calm warm white and apricot palette with subtle cool silver accent. Not a UI screenshot, no text no letters no logos no watermark."
+  },
+  {
+    "name": "audio-frame-light",
+    "size": "1536x1024",
+    "prompt": "Minimalist luxury editorial product photograph on warm ivory seamless background. Sculptural off-white over-ear headphones on a cream stone plinth, a delicate translucent apricot glass disc behind them, brushed silver details, beautiful soft daylight and gentle long shadows, spacious airy composition, highly tactile believable materials, refined contemporary art direction. No black background, no neon, no text no letters no logos no watermark."
+  }
 ]

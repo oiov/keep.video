@@ -14,7 +14,7 @@
 - website/content.mjs：四篇指南的独立中英内容。
 - scripts/build-website.mjs：首页、下载中心、指南模板及 SEO 输出。
 - website/assets/site.css：响应式视觉样式；与桌面客户端主题独立。
-- website/assets/hero-cinema.webp、video-ocean.webp、audio-still.webp：当前复用用户 nb-gen 项目已有 AI 素材；来源与生成状态见 docs/website-seo.md。
+- website/assets/hero-frame-light.webp、video-frame-light.webp、audio-frame-light.webp：本次通过 Nbility 生成的 Framekeep 专属浅色素材；提示词见 website/art-direction.json。
 - website/assets/app-preview.png：继承自上游的当前客户端截图，保留 MIT 许可。
 - website/assets/social.png：1200 × 630 网站分享预览。
 

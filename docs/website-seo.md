@@ -28,17 +28,15 @@
 
 已复用 nb-gen 的 scripts/nbility-image.py 工作流，当前项目入口是 scripts/generate-website-art.py。通过 NBILITY_IMAGE_API_KEY 读取凭据，不写入代码和素材；图片下载不携带 API 密钥。website/art-direction.json 保存 Framekeep 专属提示词。
 
-2026-10-15，gpt-image-2-5-sunburst 的三个任务，以及 gpt-image-2、gpt-image-2-5-flare 的单张验证任务，都被接受后返回 openai_error，没有得到新图。未自动重复提交同一任务。
+2026-10-15 修正服务配置后，专属素材已成功生成。用户不喜欢电影风景方向，因此最终采用浅色玻璃画框与编辑式静物，搭配暖白、杏橙和银色。全部通过 Nbility gpt-image-2-5-sunburst 生成，压缩为本地 WebP。网站已移除之前临时复用的 nb-gen 图片。
 
-当前展示用户 nb-gen 项目中已有的 AI 作品，均为本地 WebP：
-
-| 当前文件 | 来源文件 |
+| 文件 | 用途 |
 | --- | --- |
-| hero-cinema.webp | hero-monolith.webp |
-| video-ocean.webp | electric-tide.webp |
-| audio-still.webp | still-life.webp |
+| hero-frame-light.webp | 浅色悬浮画框首屏 |
+| video-frame-light.webp | 画框与播放符号 |
+| audio-frame-light.webp | 浅色耳机静物 |
 
-这些是既有 AI 素材，不是本次生成成功的作品。以后生成原创替代时，使用新的输出名或目录，保留失败任务状态以免重复收费。脚本默认跳过已有文件，不能直接覆盖当前复用图片。
+生成提示词保存在 website/art-direction.json。凭据与任务结果不提交。三款 Logo 是独立矢量设计，保存在 website/assets/brand，当前采用 frame-play.svg，另外两款为 folded-film.svg 与 keep-mark.svg；favicon 与导航标识保持一致。
 
 ## 收录与验证
 
