@@ -58,7 +58,7 @@ body:
   - type: input
     id: app_version
     attributes:
-      label: DownVid 版本
+      label: Framekeep 版本
       placeholder: 例: 1.0.0
     validations:
       required: true

@@ -18,8 +18,10 @@
 import fs from 'node:fs'
 import path from 'node:path'
 
-const OWNER = 'yxxbc'
-const REPO = 'downvid'
+const appSource = fs.readFileSync(new URL('../shared/app.ts', import.meta.url), 'utf8')
+const OWNER = appSource.match(/owner:\s*'([^']+)'/)?.[1]
+const REPO = appSource.match(/repo:\s*'([^']+)'/)?.[1]
+if (!OWNER || !REPO) throw new Error('Missing repository in shared/app.ts')
 
 const [artifactsDir, version, changelogFile] = process.argv.slice(2)
 if (!artifactsDir || !version) {

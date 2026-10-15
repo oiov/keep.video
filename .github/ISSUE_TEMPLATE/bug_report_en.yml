@@ -24,7 +24,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: DownVid Version
+      label: Framekeep Version
       placeholder: e.g., 1.0.0 (check in About page)
     validations:
       required: true
