@@ -243,8 +243,8 @@ jobs:
         with:
           name: win-builds
           path: |
-            release/**/DownVid-Setup-*.exe
-            release/**/DownVid-Portable-*.exe
+            release/**/Framekeep-Setup-*.exe
+            release/**/Framekeep-Portable-*.exe
             release/**/latest.yml
             release/**/*.blockmap
           retention-days: 7
@@ -380,8 +380,8 @@ jobs:
           files: |
             artifacts/**/*.dmg
             artifacts/**/*.zip
-            artifacts/**/DownVid-Setup-*.exe
-            artifacts/**/DownVid-Portable-*.exe
+            artifacts/**/Framekeep-Setup-*.exe
+            artifacts/**/Framekeep-Portable-*.exe
             artifacts/**/*.AppImage
             artifacts/**/*.deb
             artifacts/**/*.rpm

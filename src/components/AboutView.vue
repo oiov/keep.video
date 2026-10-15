@@ -10,10 +10,10 @@
       <div class="bg-linear-to-br from-primary/5 to-secondary/5 rounded-2xl p-6 mb-6 border border-outline-variant/10">
         <div class="flex items-center gap-4">
           <div class="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
-            <img src="@/assets/logo.png" alt="DownVid" class="w-full h-full object-contain" />
+            <img src="@/assets/logo.png" alt="Framekeep" class="w-full h-full object-contain" />
           </div>
           <div class="flex-1 min-w-0">
-            <h2 class="font-headline text-xl font-bold text-on-surface">DownVid</h2>
+            <h2 class="font-headline text-xl font-bold text-on-surface">Framekeep</h2>
             <p class="text-on-surface-variant text-sm mt-0.5">v{{ appVersion }}</p>
           </div>
           <button
@@ -146,39 +146,10 @@
         <span class="text-xs font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">MIT License</span>
       </div>
 
-      <!-- 支持项目 -->
-      <div class="mt-6 p-4 rounded-xl bg-surface-container-low border border-outline-variant/10">
-        <div class="flex items-center gap-2 mb-3">
-          <MaterialIcon name="favorite" :size="18" class="text-primary" />
-          <p class="text-sm font-medium text-on-surface">{{ t('about.support') }}</p>
-        </div>
-        <p class="text-xs text-on-surface-variant leading-relaxed mb-3">
-          {{ t('about.supportHint') }}
-        </p>
-        <button
-          class="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest transition-colors border border-outline-variant/15"
-          @click="showDonate = !showDonate"
-        >
-          <MaterialIcon :name="showDonate ? 'expand_less' : 'qr_code_2'" :size="18" class="text-on-surface-variant" />
-          <span class="text-sm font-medium text-on-surface">{{ showDonate ? t('about.hideDonate') : t('about.showDonate') }}</span>
-        </button>
-
-        <Transition name="donate">
-          <div v-if="showDonate" class="mt-3 flex flex-col items-center gap-2">
-            <img
-              src="../assets/donate.jpg"
-              :alt="t('about.donateAlt')"
-              class="w-52 rounded-lg border border-outline-variant/15"
-            />
-            <p class="text-[11px] text-on-surface-variant">{{ t('about.donateCaption') }}</p>
-          </div>
-        </Transition>
-      </div>
-
       <!-- Copyright -->
       <div class="text-center pt-4">
-        <p class="text-xs text-on-surface-variant/60">© 2026 DownVid</p>
-        <p class="text-xs text-on-surface-variant/40 mt-1">Based on <a href="https://github.com/cshuangyy/videdown" class="hover:underline">Videdown</a> by cshuangyy (MIT License)</p>
+        <p class="text-xs text-on-surface-variant/60">© 2026 Framekeep</p>
+        <p class="text-xs text-on-surface-variant/40 mt-1">Based on DownVid (yxxbc) and <a href="https://github.com/cshuangyy/videdown" class="hover:underline">Videdown</a> by cshuangyy (MIT License)</p>
       </div>
     </div>
 
@@ -208,7 +179,7 @@ const repoLabel = `github.com/${REPO_SLUG}`
  * 顺序即展示顺序；`role` 只用于身份标。原作者不必额外标注 —— 许可证里已经写明。
  */
 const CONTRIBUTORS = [
-  { login: 'yxxbc', url: 'https://github.com/yxxbc', role: 'DEV' },
+  { login: 'oiov', url: 'https://github.com/oiov', role: 'DEV' },
   { login: 'cshuangyy', url: 'https://github.com/cshuangyy' },
   { login: 'hailaij', url: 'https://github.com/hailaij', role: 'CONTRIBUTOR' },
   { login: 'jwfstars', url: 'https://github.com/jwfstars', role: 'CONTRIBUTOR' },
@@ -219,7 +190,6 @@ function avatarUrl(login: string): string {
   return `https://github.com/${login}.png?size=112`
 }
 
-const showDonate = ref(false)
 
 /** 技术栈：与 README、package.json 保持一致，改其一时同步另一处 */
 const techStack = [
@@ -266,6 +236,4 @@ async function openExternal(url: string) {
 </script>
 
 <style scoped>
-.donate-enter-active, .donate-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
-.donate-enter-from, .donate-leave-to { opacity: 0; transform: translateY(-4px); }
 </style>

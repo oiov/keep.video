@@ -119,9 +119,9 @@ function macAppBundle(): { bundle?: string; reason?: string } {
   const bundle = path.resolve(process.execPath, '..', '..', '..')
   if (!bundle.endsWith('.app')) return { reason: '未找到应用包路径' }
   if (bundle.includes('/AppTranslocation/')) {
-    return { reason: '应用正在隔离环境中运行，请先将 DownVid 拖入“应用程序”文件夹后再更新' }
+    return { reason: '应用正在隔离环境中运行，请先将 Framekeep 拖入“应用程序”文件夹后再更新' }
   }
-  if (bundle.startsWith('/Volumes/')) return { reason: '请先将 DownVid 从安装镜像拖入“应用程序”文件夹后再更新' }
+  if (bundle.startsWith('/Volumes/')) return { reason: '请先将 Framekeep 从安装镜像拖入“应用程序”文件夹后再更新' }
   return { bundle }
 }
 

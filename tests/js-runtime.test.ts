@@ -10,8 +10,8 @@ vi.mock('node:child_process', () => ({ execFile: vi.fn() }))
  *
  * 背景（真实事故）：`checkJsRuntime()` 曾返回 `process.execPath`——也就是 Electron
  * 二进制本身——并靠 `path.includes('node')` 猜测类型。Electron 的路径里没有 "node"，
- * 于是被当成 deno 传给 `yt-dlp --js-runtimes deno:/Applications/DownVid.app/Contents/MacOS/DownVid`。
- * yt-dlp 照常执行它，**拉起了一整个 DownVid**：用户点解析后会多开一个应用。
+ * 于是被当成 deno 传给 `yt-dlp --js-runtimes deno:/Applications/Framekeep.app/Contents/MacOS/Framekeep`。
+ * yt-dlp 照常执行它，**拉起了一整个 Framekeep**：用户点解析后会多开一个应用。
  * 实测进程数 1 → 3。
  *
  * 所以这里把"哪些路径可以当 node/deno 运行时"这条判定固定下来。
@@ -21,8 +21,8 @@ afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs() })
 
 describe('JS 运行时候选判定', () => {
   it('排除 macOS 打包应用内的 Electron 二进制（正是事故现场）', () => {
-    expect(looksLikeNode('/Applications/DownVid.app/Contents/MacOS/DownVid')).toBe(false)
-    expect(looksLikeNode('/Users/mac/Projects/downvid/release/1.3.0/mac-arm64/DownVid.app/Contents/MacOS/DownVid')).toBe(false)
+    expect(looksLikeNode('/Applications/Framekeep.app/Contents/MacOS/Framekeep')).toBe(false)
+    expect(looksLikeNode('/Users/mac/Projects/downvid/release/1.3.0/mac-arm64/Framekeep.app/Contents/MacOS/Framekeep')).toBe(false)
   })
 
   it('排除其它 Electron 应用（路径可能不含 .app，如开发态）', () => {
@@ -41,7 +41,7 @@ describe('JS 运行时候选判定', () => {
 
   it('大小写不敏感（Windows 路径常见）', () => {
     expect(looksLikeNode('C:\\PROGRAM FILES\\NODEJS\\node.exe')).toBe(true)
-    expect(looksLikeNode('C:\\X\\DownVid.APP\\Contents\\MacOS\\DownVid')).toBe(false)
+    expect(looksLikeNode('C:\\X\\Framekeep.APP\\Contents\\MacOS\\Framekeep')).toBe(false)
   })
 })
 

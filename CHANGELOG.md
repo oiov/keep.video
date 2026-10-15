@@ -1,10 +1,17 @@
-# Changelog
+# 更新日志
 
-本文件记录 DownVid 的所有版本更新。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
+## [1.0.0] - 2026-10-15
+
+- 首次发布 Framekeep：独立应用名称、Logo、安装包标识与下载目录。
+- GitHub、反馈及自动更新统一指向 oiov/download。
+- 新增 14 页双语产品网站、原创 AI 素材及完整 SEO 配置。
+- 支持视频、音频、字幕下载与队列管理，继承上游下载引擎能力。
+
+## 上游历史
+
+以下保留 DownVid 上游版本历史。格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.0.0/)。
 
 ## [Unreleased]
-
-- 新增 Framekeep 双语官网与 SEO 输出，更新仓库指向 oiov/download。
 
 ### 修复
 

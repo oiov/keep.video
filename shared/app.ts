@@ -14,7 +14,7 @@
  */
 
 export const APP = {
-  name: 'DownVid',
+  name: 'Framekeep',
   owner: 'oiov',
   repo: 'download',
 } as const
@@ -32,7 +32,7 @@ export const ISSUES_URL = `${REPO_URL}/issues`
 export const GITHUB_API = 'https://api.github.com'
 
 /** 请求 GitHub API 时的 User-Agent；缺失会被直接拒绝（403） */
-export const HTTP_USER_AGENT = `DownVid/${REPO_SLUG}`
+export const HTTP_USER_AGENT = `Framekeep/${REPO_SLUG}`
 
 /** 新建 Issue，附带标题、正文与标签 */
 export function newIssueUrl(params: { title: string; body?: string; labels?: string }): string {

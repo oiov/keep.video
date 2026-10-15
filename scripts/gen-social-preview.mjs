@@ -127,7 +127,7 @@ const finalCmd = `magick "${path.join(tmpDir, 'bg_combined.png')}" \\
   "${path.join(tmpDir, 'cards_layer.png')}" -composite \\
   "${path.join(tmpDir, 'logo_final.png')}" -geometry +52+48 -composite \\
   \\
-  -font "${FONT_EN_BOLD}" -pointsize 44 -fill "#ffffff" -annotate +148+108 "DownVid" \\
+  -font "${FONT_EN_BOLD}" -pointsize 44 -fill "#ffffff" -annotate +148+108 "Framekeep" \\
   -font "${FONT_EN_BOLD}" -pointsize 11 -fill "#38bdf8" -annotate +357+93 "v1.3.3" \\
   -font "${FONT_CJK}" -pointsize 11 -fill "#7dd3fc" -annotate +430+93 "开源跨平台" \\
   \\

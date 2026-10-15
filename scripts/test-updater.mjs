@@ -92,10 +92,10 @@ function loadUpdater(overrides = {}) {
       electron,
       'electron-updater': { autoUpdater },
       './constants': {
-        APP: { name: 'DownVid', owner: 'yxxbc', repo: 'downvid' },
+        APP: { name: 'Framekeep', owner: 'yxxbc', repo: 'downvid' },
         GITHUB_API: 'https://api.github.com',
-        HTTP_USER_AGENT: 'DownVid/test',
-        RELEASES_URL: 'https://github.com/yxxbc/downvid/releases',
+        HTTP_USER_AGENT: 'Framekeep/test',
+        RELEASES_URL: 'https://github.com/oiov/download/releases',
       },
       './store': { broadcast: (channel, data) => state.broadcasts.push({ channel, data }) },
       './main': { log: () => {} },
@@ -106,7 +106,7 @@ function loadUpdater(overrides = {}) {
         platform: overrides.platform || 'linux',
         // Linux 上必须给出 APPIMAGE，否则 unsupportedReason() 会判成 tar.gz、
         // 走进「手动下载」分支 —— 那样就测不到自动更新的路径了
-        env: { APPIMAGE: '/tmp/DownVid.AppImage', ...(overrides.env || {}) },
+        env: { APPIMAGE: '/tmp/Framekeep.AppImage', ...(overrides.env || {}) },
       },
     },
   )
@@ -254,7 +254,7 @@ suite.case('安装方式分支：便携版 / tar.gz / 开发模式必须走手�
     {
       why: '便携版（Windows）',
       platform: 'win32',
-      env: { PORTABLE_EXECUTABLE_DIR: 'D:\\DownVid' },
+      env: { PORTABLE_EXECUTABLE_DIR: 'D:\\Framekeep' },
       expectManual: true,
     },
     {
@@ -341,25 +341,25 @@ suite.case('发布产物清单：latest*.yml 覆盖全部平台，且每个产�
   const { execFileSync } = await import('node:child_process')
   const dir = suite.tempDir('downvid-manifests-')
   const fake = [
-    'DownVid-Setup-9.9.9.exe',
-    'DownVid-Portable-9.9.9.exe',
-    'DownVid-arm64-Mac-9.9.9.zip',
-    'DownVid-x64-Mac-9.9.9.zip',
-    'DownVid-arm64-Mac-9.9.9.dmg',
-    'DownVid-x64-Mac-9.9.9.dmg',
-    'DownVid-x86_64-Linux-9.9.9.AppImage',
-    'DownVid-amd64-Linux-9.9.9.deb',
-    'DownVid-x86_64-Linux-9.9.9.rpm',
-    'DownVid-arm64-Linux-9.9.9.AppImage',
+    'Framekeep-Setup-9.9.9.exe',
+    'Framekeep-Portable-9.9.9.exe',
+    'Framekeep-arm64-Mac-9.9.9.zip',
+    'Framekeep-x64-Mac-9.9.9.zip',
+    'Framekeep-arm64-Mac-9.9.9.dmg',
+    'Framekeep-x64-Mac-9.9.9.dmg',
+    'Framekeep-x86_64-Linux-9.9.9.AppImage',
+    'Framekeep-amd64-Linux-9.9.9.deb',
+    'Framekeep-x86_64-Linux-9.9.9.rpm',
+    'Framekeep-arm64-Linux-9.9.9.AppImage',
   ]
   for (const f of fake) fs.writeFileSync(path.join(dir, f), `content of ${f}`)
   execFileSync('node', ['scripts/gen-update-manifests.mjs', dir, '9.9.9'], { cwd: root })
 
   for (const [file, mustContain] of [
-    ['latest.yml', 'DownVid-Setup-9.9.9.exe'],
-    ['latest-mac.yml', 'DownVid-arm64-Mac-9.9.9.zip'],
-    ['latest-linux.yml', 'DownVid-x86_64-Linux-9.9.9.AppImage'],
-    ['latest-linux-arm64.yml', 'DownVid-arm64-Linux-9.9.9.AppImage'],
+    ['latest.yml', 'Framekeep-Setup-9.9.9.exe'],
+    ['latest-mac.yml', 'Framekeep-arm64-Mac-9.9.9.zip'],
+    ['latest-linux.yml', 'Framekeep-x86_64-Linux-9.9.9.AppImage'],
+    ['latest-linux-arm64.yml', 'Framekeep-arm64-Linux-9.9.9.AppImage'],
   ]) {
     const p = path.join(dir, file)
     t.ok(fs.existsSync(p), `${file} 必须生成`)
@@ -379,14 +379,14 @@ suite.case('Release 正文按实际产物生成，不出现死链', async (t) =>
   const { execFileSync } = await import('node:child_process')
   const dir = suite.tempDir('downvid-notes-')
   // 只放部分产物：正文里就不应出现没放进去的那几个
-  fs.writeFileSync(path.join(dir, 'DownVid-Setup-9.9.9.exe'), 'x')
-  fs.writeFileSync(path.join(dir, 'DownVid-arm64-Mac-9.9.9.dmg'), 'x')
+  fs.writeFileSync(path.join(dir, 'Framekeep-Setup-9.9.9.exe'), 'x')
+  fs.writeFileSync(path.join(dir, 'Framekeep-arm64-Mac-9.9.9.dmg'), 'x')
   const out = execFileSync('node', ['scripts/gen-release-notes.mjs', dir, '9.9.9', 'CHANGELOG.md'], {
     cwd: root,
     encoding: 'utf8',
   })
-  t.ok(out.includes('DownVid-Setup-9.9.9.exe'), '存在的产物应出现在正文里')
-  t.ok(!out.includes('DownVid-Portable-9.9.9.exe'), '不存在的产物不得出现在正文里（会是死链）')
+  t.ok(out.includes('Framekeep-Setup-9.9.9.exe'), '存在的产物应出现在正文里')
+  t.ok(!out.includes('Framekeep-Portable-9.9.9.exe'), '不存在的产物不得出现在正文里（会是死链）')
   t.ok(out.includes('更新内容'), '正文应含「更新内容」分节（应用内更新弹窗按它裁剪）')
 })
 

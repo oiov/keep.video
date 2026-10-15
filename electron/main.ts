@@ -119,7 +119,7 @@ function createWindow() {
     titleBarStyle: 'hidden',
     ...(process.platform === 'darwin' ? { trafficLightPosition: { x: 16, y: 16 } } : {}),
     icon: process.platform !== 'darwin'
-      ? path.join(process.env.APP_ROOT || '', 'ldstore.ico')
+      ? path.join(process.env.APP_ROOT || '', 'build/icon.png')
       : undefined,
     webPreferences: webPreferences(),
   })
@@ -163,7 +163,7 @@ function createWindow() {
  * 两个作用：
  *  - 用户重复双击图标（或系统的"打开方式"）不会开出多个窗口
  *  - 兜住被外部程序误启动的情况：yt-dlp 曾把 Electron 二进制当作 deno 运行时执行，
- *    于是又拉起了一整个 DownVid（表现为"点解析后多开一个应用"）。根因已修
+ *    于是又拉起了一整个 Framekeep（表现为"点解析后多开一个应用"）。根因已修
  *    （见 utils/binary.ts 的 checkJsRuntime），这把锁保证同类问题不会真的开出窗口。
  *
  * 拿不到锁说明已有实例在跑，把已有窗口带到前台后立即退出。

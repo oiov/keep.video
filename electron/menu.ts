@@ -23,7 +23,7 @@ export function createMenu() {
     {
       label: app.name,
       submenu: [
-        { label: '关于 DownVid', click: () => getMainWindow()?.webContents.send('menu:showAbout') },
+        { label: '关于 Framekeep', click: () => getMainWindow()?.webContents.send('menu:showAbout') },
         { type: 'separator' },
         {
           label: '设置…',
@@ -32,11 +32,11 @@ export function createMenu() {
           click: () => getMainWindow()?.webContents.send('menu:openSettings'),
         },
         { type: 'separator' },
-        { label: '隐藏 DownVid', role: 'hide' },
+        { label: '隐藏 Framekeep', role: 'hide' },
         { label: '隐藏其他', role: 'hideOthers' },
         { label: '显示全部', role: 'unhide' },
         { type: 'separator' },
-        { label: '退出 DownVid', accelerator: 'Cmd+Q', click: () => app.quit() },
+        { label: '退出 Framekeep', accelerator: 'Cmd+Q', click: () => app.quit() },
       ],
     },
     {

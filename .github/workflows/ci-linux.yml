@@ -238,24 +238,24 @@ jobs:
         shell: bash
         run: |
           mkdir -p tmp-artifacts
-          for f in DownVid-Setup-0.0.0.exe DownVid-arm64-Mac-0.0.0.zip DownVid-x64-Mac-0.0.0.zip DownVid-x86_64-Linux-0.0.0.AppImage DownVid-amd64-Linux-0.0.0.deb DownVid-arm64-Linux-0.0.0.AppImage; do
+          for f in Framekeep-Setup-0.0.0.exe Framekeep-arm64-Mac-0.0.0.zip Framekeep-x64-Mac-0.0.0.zip Framekeep-x86_64-Linux-0.0.0.AppImage Framekeep-amd64-Linux-0.0.0.deb Framekeep-arm64-Linux-0.0.0.AppImage; do
             echo "$f" > "tmp-artifacts/$f"
           done
           node scripts/gen-update-manifests.mjs tmp-artifacts 0.0.0
-          grep -q "DownVid-amd64-Linux-0.0.0.deb" tmp-artifacts/latest-linux.yml
-          grep -q "DownVid-x64-Mac-0.0.0.zip" tmp-artifacts/latest-mac.yml
+          grep -q "Framekeep-amd64-Linux-0.0.0.deb" tmp-artifacts/latest-linux.yml
+          grep -q "Framekeep-x64-Mac-0.0.0.zip" tmp-artifacts/latest-mac.yml
 
       - name: Release 正文生成脚本自检
         shell: bash
         run: |
           mkdir -p tmp-release && rm -f tmp-release/*
-          for f in DownVid-Setup-0.0.0.exe DownVid-arm64-Mac-0.0.0.dmg; do
+          for f in Framekeep-Setup-0.0.0.exe Framekeep-arm64-Mac-0.0.0.dmg; do
             echo x > "tmp-release/$f"
           done
           node scripts/gen-release-notes.mjs tmp-release 0.0.0 CHANGELOG.md > /tmp/notes.md
-          grep -q "DownVid-Setup-0.0.0.exe" /tmp/notes.md
+          grep -q "Framekeep-Setup-0.0.0.exe" /tmp/notes.md
           grep -q "更新内容" /tmp/notes.md
-          if grep -q "DownVid-Portable-0.0.0.exe" /tmp/notes.md; then
+          if grep -q "Framekeep-Portable-0.0.0.exe" /tmp/notes.md; then
             echo "::error::Release 正文引用了不存在的产物（便携版）"
             exit 1
           fi

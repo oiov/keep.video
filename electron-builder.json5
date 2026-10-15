@@ -1,9 +1,9 @@
 // @see - https://www.electron.build/configuration/configuration
 {
   "$schema": "https://raw.githubusercontent.com/electron-userland/electron-builder/master/packages/app-builder-lib/scheme.json",
-  "appId": "com.downvid.app",
+  "appId": "app.framekeep.desktop",
   "asar": true,
-  "productName": "DownVid",
+  "productName": "Framekeep",
   "icon": "build/icon.png",
   "directories": {
     "output": "release/${version}"
@@ -15,6 +15,8 @@
   "files": [
     "dist",
     "dist-electron",
+    "build/icon.png",
+    "LICENSE",
     "!node_modules",
   ],
   // 安装包不再内置 yt-dlp / ffmpeg：只带 Go 边车，运行时识别并复用系统已安装的版本，
@@ -91,7 +93,7 @@
     // electron-builder 26 起 .desktop 条目需放在 desktop.entry 下
     "desktop": {
       "entry": {
-        "Name": "DownVid",
+        "Name": "Framekeep",
         "Comment": "全平台视频下载工具",
         "Categories": "Utility;AudioVideo;Network;"
       }

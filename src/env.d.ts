@@ -71,7 +71,7 @@ interface Window {
       pauseDownload: (taskId: string) => Promise<boolean>
     }
     /**
-     * 运行依赖管理。DownVid 不再自带 yt-dlp / ffmpeg：
+     * 运行依赖管理。Framekeep 不再自带 yt-dlp / ffmpeg：
      * 优先复用机器上已安装的版本，缺失时由主进程调用 Go 边车下载到 userData。
      */
     deps: {

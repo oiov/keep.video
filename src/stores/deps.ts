@@ -75,7 +75,7 @@ export const useDepsStore = defineStore('deps', () => {
   const missingOptional = computed(() => deps.value.filter(d => !d.found && d.optional))
   const ready = computed(() => deps.value.length > 0 && missingRequired.value.length === 0)
   const anyMissing = computed(() => deps.value.some(d => !d.found))
-  /** 探测结果里是否由 DownVid 托管（决定界面显示「更新」还是「下载」） */
+  /** 探测结果里是否由 Framekeep 托管（决定界面显示「更新」还是「下载」） */
   const managedCount = computed(() => deps.value.filter(d => d.found && d.source === 'managed').length)
 
   /** 已下载比例；total 未知时返回 null，界面改用不确定进度条 */

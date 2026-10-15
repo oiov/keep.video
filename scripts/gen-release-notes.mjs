@@ -58,14 +58,14 @@ function badge(label, message, color, url, logo) {
 }
 
 // ===== 按平台收集实际产物 =====
-const winSetup = find(new RegExp(`^DownVid-Setup-${version.replace(/\./g, '\\.')}\\.exe$`))
-const winPortable = find(new RegExp(`^DownVid-Portable-${version.replace(/\./g, '\\.')}\\.exe$`))
-const macArmDmg = find(new RegExp(`^DownVid-arm64-Mac-${version.replace(/\./g, '\\.')}\\.dmg$`))
-const macX64Dmg = find(new RegExp(`^DownVid-x64-Mac-${version.replace(/\./g, '\\.')}\\.dmg$`))
-const linuxAppImage = find(new RegExp(`^DownVid-x86_64-Linux-${version.replace(/\./g, '\\.')}\\.AppImage$`))
-const linuxArmAppImage = find(new RegExp(`^DownVid-arm64-Linux-${version.replace(/\./g, '\\.')}\\.AppImage$`))
-const linuxDeb = find(new RegExp(`^DownVid-amd64-Linux-${version.replace(/\./g, '\\.')}\\.deb$`))
-const linuxRpm = find(new RegExp(`^DownVid-x86_64-Linux-${version.replace(/\./g, '\\.')}\\.rpm$`))
+const winSetup = find(new RegExp(`^Framekeep-Setup-${version.replace(/\./g, '\\.')}\\.exe$`))
+const winPortable = find(new RegExp(`^Framekeep-Portable-${version.replace(/\./g, '\\.')}\\.exe$`))
+const macArmDmg = find(new RegExp(`^Framekeep-arm64-Mac-${version.replace(/\./g, '\\.')}\\.dmg$`))
+const macX64Dmg = find(new RegExp(`^Framekeep-x64-Mac-${version.replace(/\./g, '\\.')}\\.dmg$`))
+const linuxAppImage = find(new RegExp(`^Framekeep-x86_64-Linux-${version.replace(/\./g, '\\.')}\\.AppImage$`))
+const linuxArmAppImage = find(new RegExp(`^Framekeep-arm64-Linux-${version.replace(/\./g, '\\.')}\\.AppImage$`))
+const linuxDeb = find(new RegExp(`^Framekeep-amd64-Linux-${version.replace(/\./g, '\\.')}\\.deb$`))
+const linuxRpm = find(new RegExp(`^Framekeep-x86_64-Linux-${version.replace(/\./g, '\\.')}\\.rpm$`))
 
 // 首选下载：每个平台一个，避免选择困难
 const primaryBadges = [
@@ -152,7 +152,7 @@ ${platformNote}
 
 ## 📝 更新内容
 
-${changelogBody || `DownVid v${version} 发布。详见 [CHANGELOG.md](https://github.com/${OWNER}/${REPO}/blob/main/CHANGELOG.md)。`}
+${changelogBody || `Framekeep v${version} 发布。详见 [CHANGELOG.md](https://github.com/${OWNER}/${REPO}/blob/main/CHANGELOG.md)。`}
 
 ---
 
