@@ -3,5 +3,5 @@ export const site = {
   name: 'Framekeep', origin: '',
   repository: 'https://github.com/oiov/download',
   upstream: 'https://github.com/yxxbc/downvid',
-  releaseAvailable: false,
+  releaseAvailable: true,
 }
