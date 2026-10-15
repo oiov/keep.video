@@ -9,7 +9,7 @@
 - [yt-dlp 下载器接口](https://github.com/yt-dlp/yt-dlp#download-options)：按协议选择外部下载器。
 - [aria2 官方手册](https://aria2.github.io/manual/en/html/aria2c.html)：连接上限、split、续传与证书验证。
 
-REA 仅用于参考分析，不是 DownVid 的运行依赖。公开资料足以确定本次实现方向；
+REA 仅用于参考分析，不是 Framekeep 的运行依赖。公开资料足以确定本次实现方向；
 没有反编译、注入或修改 FDM，也不声称验证了其内部私有算法。
 
 ## 实现

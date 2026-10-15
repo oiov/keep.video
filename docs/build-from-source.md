@@ -1,6 +1,6 @@
 # 从源码构建
 
-本文档详细介绍如何从源码构建 DownVid。
+本文档详细介绍如何从源码构建 Framekeep。
 
 ---
 
@@ -52,7 +52,7 @@ curl -fsSL https://get.pnpm.io/install.sh | sh -
 ### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/yxxbc/downvid.git
+git clone https://github.com/oiov/download.git
 cd downvid
 ```
 
@@ -72,7 +72,7 @@ pnpm install
 **安装包不再内置这两个工具**，所以构建前无需下载任何二进制。运行时会由 Go 边车按「系统优先」的顺序自动查找：
 
 1. 设置里手动指定的路径
-2. DownVid 数据目录下的托管版本（`userData/runtime/bin/`，由界面上的下载按钮安装）
+2. Framekeep 数据目录下的托管版本（`userData/runtime/bin/`，由界面上的下载按钮安装）
 3. 登录 shell 的 `PATH` 与各平台常见安装目录（Homebrew、MacPorts、`/usr/local/bin`、scoop、winget、apt 等）
 4. 裸命令名交给 `PATH` 兜底
 
@@ -178,15 +178,15 @@ pnpm build:linux:x64:tar.gz
 ```
 release/
 └── 1.0.0/
-    ├── DownVid-arm64-Mac-1.0.0.dmg
-    ├── DownVid-arm64-Mac-1.0.0.zip
-    ├── DownVid-x64-Mac-1.0.0.dmg
-    ├── DownVid-x64-Mac-1.0.0.zip
-    ├── DownVid-Setup-1.0.0.exe
-    ├── DownVid-x64-Linux-1.0.0.AppImage
-    ├── DownVid-x64-Linux-1.0.0.deb
-    ├── DownVid-x64-Linux-1.0.0.rpm
-    └── DownVid-x64-Linux-1.0.0.tar.gz
+    ├── Framekeep-arm64-Mac-1.0.0.dmg
+    ├── Framekeep-arm64-Mac-1.0.0.zip
+    ├── Framekeep-x64-Mac-1.0.0.dmg
+    ├── Framekeep-x64-Mac-1.0.0.zip
+    ├── Framekeep-Setup-1.0.0.exe
+    ├── Framekeep-x64-Linux-1.0.0.AppImage
+    ├── Framekeep-x64-Linux-1.0.0.deb
+    ├── Framekeep-x64-Linux-1.0.0.rpm
+    └── Framekeep-x64-Linux-1.0.0.tar.gz
 ```
 
 ---

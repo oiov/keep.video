@@ -1,4 +1,4 @@
-# AGENTS.md — DownVid 开发速查
+# AGENTS.md — Framekeep 开发速查
 
 面向在本仓库改代码的人（或 AI）。这个项目的耦合点比文件数量看起来多——很多地方是**手工同步**的，
 漏改会静默失败（不报错、功能不生效）。改任何东西之前请先读「改动落点清单」一节。
@@ -190,8 +190,8 @@ Go 边车由同文件的 `goBackend()` 插件构建。`vitest.config.ts` 与 `vi
 ### 5. 改发布产物 → 会切断存量用户的自动更新
 
 产物名被旧版本客户端的 `latest*.yml` 引用。**改名 = 所有老用户无法自动更新。**
-不可更改：`DownVid-Setup-*`、`DownVid-Portable-*`、`DownVid-<arch>-Mac-*`、
-`DownVid-x86_64-Linux-*`。`pnpm lint:ipc` 会校验 `electron-builder.json5` 里的 `artifactName`。
+不可更改：`Framekeep-Setup-*`、`Framekeep-Portable-*`、`Framekeep-<arch>-Mac-*`、
+`Framekeep-x86_64-Linux-*`。`pnpm lint:ipc` 会校验 `electron-builder.json5` 里的 `artifactName`。
 
 Linux 用 `amd64`/`x86_64` 而不是 `x64`（与 electron-builder 的 `${arch}` 取值不同，历史约定）。
 

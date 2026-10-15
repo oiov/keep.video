@@ -1,6 +1,6 @@
 # 故障排除指南
 
-本文档列出使用 DownVid 时可能遇到的各种问题及其解决方案。
+本文档列出使用 Framekeep 时可能遇到的各种问题及其解决方案。
 
 ---
 
@@ -23,12 +23,12 @@
 
 **症状：** 双击应用后弹出警告框，提示无法打开。
 
-**原因：** macOS 默认只允许运行 App Store 中的应用和经过 Apple 公证的应用。DownVid 是开源项目，没有 Apple 开发者证书。
+**原因：** macOS 默认只允许运行 App Store 中的应用和经过 Apple 公证的应用。Framekeep 是开源项目，没有 Apple 开发者证书。
 
 **解决方案：**
 
 **方法一（推荐）：右键打开**
-1. 在"应用程序"中找到 DownVid
+1. 在"应用程序"中找到 Framekeep
 2. **右键点击** → 选择 **"打开"**
 3. 弹出警告后点击 **"打开"**
 4. 以后就可以正常双击打开了
@@ -40,7 +40,7 @@
 
 **方法三：终端命令（一劳永逸）**
 ```bash
-xattr -cr /Applications/DownVid.app
+xattr -cr /Applications/Framekeep.app
 ```
 
 > 💡 这个问题只在第一次打开时出现，打开过一次后就不会再出现了。
@@ -60,13 +60,13 @@ xattr -cr /Applications/DownVid.app
 
 ### Windows 杀毒软件误报
 
-**症状：** 杀毒软件将 DownVid 标记为病毒或威胁。
+**症状：** 杀毒软件将 Framekeep 标记为病毒或威胁。
 
-**原因：** DownVid 是开源项目，没有代码签名证书，部分杀毒软件会将其误报。
+**原因：** Framekeep 是开源项目，没有代码签名证书，部分杀毒软件会将其误报。
 
 **解决方案：**
 1. 打开杀毒软件的"隔离区"或"信任区"
-2. 找到 DownVid 相关文件
+2. 找到 Framekeep 相关文件
 3. 选择 **"恢复"** 并 **"添加信任"**
 4. 或者临时关闭杀毒软件的实时保护，安装后重新开启
 
@@ -103,14 +103,14 @@ sudo zypper install fuse2
 **可能原因和解决方案：**
 
 1. **GPU 兼容性问题**
-   - DownVid 已内置 GPU 兼容性修复，通常不会出现此问题
+   - Framekeep 已内置 GPU 兼容性修复，通常不会出现此问题
    - 如果仍然出现，尝试在终端中运行：
      ```bash
      # macOS
-     open -a DownVid --args --disable-gpu
+     open -a Framekeep --args --disable-gpu
      
      # Windows（在 CMD 中）
-     "C:\path\to\DownVid.exe" --disable-gpu
+     "C:\path\to\Framekeep.exe" --disable-gpu
      ```
 
 2. **系统版本过低**
@@ -130,16 +130,16 @@ sudo zypper install fuse2
 
 **错误信息：** `yt-dlp 未找到` 或 `无法找到 yt-dlp`
 
-**原因：** DownVid 不再内置 yt-dlp，需要从机器上已有的安装中识别，或应用内下载一份。
+**原因：** Framekeep 不再内置 yt-dlp，需要从机器上已有的安装中识别，或应用内下载一份。
 
 **解决方案：**
 
 1. 打开「设置 → 运行依赖」，点「重新检测」查看具体原因（会显示探测到的路径、版本与来源）
-2. 直接点「下载缺失的依赖」，DownVid 会下载到自己的数据目录（不会污染系统）
+2. 直接点「下载缺失的依赖」，Framekeep 会下载到自己的数据目录（不会污染系统）
 3. 想用自己装的那份：按上面「方式二」的命令安装后重新检测即可
 4. 自动检测不到时，可在同一页面「手动指定可执行文件（进阶）」里选绝对路径
 
-> 提示：从桌面 / Finder 启动时 `PATH` 很精简，DownVid 会额外执行一次登录 shell
+> 提示：从桌面 / Finder 启动时 `PATH` 很精简，Framekeep 会额外执行一次登录 shell
 > 来补全 Homebrew、`~/.local/bin` 等目录，因此正常情况下系统装好的版本都能被识别。
 
 ---
@@ -232,7 +232,7 @@ ffmpeg 只在合并音视频与音频转码时需要，因此**字幕下载不�
 
 4. **yt-dlp 版本过旧**
    - 在「设置 → 运行依赖」里能看到当前使用的版本与路径
-   - 由 DownVid 托管的那份可在该页面点「更新」重新下载到最新清单版本
+   - 由 Framekeep 托管的那份可在该页面点「更新」重新下载到最新清单版本
    - 系统自带的那份请用对应包管理器升级（如 `brew upgrade yt-dlp`）
 
 ---
@@ -242,7 +242,7 @@ ffmpeg 只在合并音视频与音频转码时需要，因此**字幕下载不�
 **可能原因和解决方案：**
 
 1. **视频和音频是分开的流**
-   - DownVid 会自动合并视频和音频
+   - Framekeep 会自动合并视频和音频
    - 如果合并失败，会提示错误
    - 确保 ffmpeg 正常工作
 
@@ -254,7 +254,7 @@ ffmpeg 只在合并音视频与音频转码时需要，因此**字幕下载不�
 
 ### 下载的视频画质不好
 
-**说明：** DownVid 提供的画质取决于源平台提供的选项。如果源平台最高只有 720p，DownVid 无法下载 1080p。
+**说明：** Framekeep 提供的画质取决于源平台提供的选项。如果源平台最高只有 720p，Framekeep 无法下载 1080p。
 
 **解决方案：**
 1. 在格式选择界面查看所有可用的画质
@@ -276,10 +276,10 @@ ffmpeg 只在合并音视频与音频转码时需要，因此**字幕下载不�
 2. **界面卡死**
    - 尝试按 `Ctrl+Shift+I`（Windows/Linux）或 `Cmd+Option+I`（macOS）打开开发者工具
    - 查看 Console 中是否有红色错误信息
-   - 如果有错误，截图提交 [Issue](https://github.com/yxxbc/downvid/issues)
+   - 如果有错误，截图提交 [Issue](https://github.com/oiov/download/issues)
 
 3. **窗口太小**
-   - DownVid 最小窗口为 1000x700
+   - Framekeep 最小窗口为 1000x700
    - 如果窗口太小，部分界面可能被裁切
    - 拖动窗口边缘放大
 
@@ -294,7 +294,7 @@ ffmpeg 只在合并音视频与音频转码时需要，因此**字幕下载不�
 **解决方案：**
 1. 确保网络正常（需要加载 Google Fonts）
 2. 重启应用
-3. 如果问题持续，提交 [Issue](https://github.com/yxxbc/downvid/issues) 并附截图
+3. 如果问题持续，提交 [Issue](https://github.com/oiov/download/issues) 并附截图
 
 ---
 
@@ -305,9 +305,9 @@ ffmpeg 只在合并音视频与音频转码时需要，因此**字幕下载不�
 2. 历史记录文件被删除
 
 **说明：** 下载历史保存在用户数据目录中：
-- macOS: `~/Library/Application Support/DownVid/download-history.json`
-- Windows: `%APPDATA%\DownVid\download-history.json`
-- Linux: `~/.config/DownVid/download-history.json`
+- macOS: `~/Library/Application Support/Framekeep/download-history.json`
+- Windows: `%APPDATA%\Framekeep\download-history.json`
+- Linux: `~/.config/Framekeep/download-history.json`
 
 ---
 
@@ -315,7 +315,7 @@ ffmpeg 只在合并音视频与音频转码时需要，因此**字幕下载不�
 
 ### 什么是 Cookie 模式？
 
-DownVid 支持两种 Cookie 模式：
+Framekeep 支持两种 Cookie 模式：
 
 1. **自动模式（默认）**：自动从你的浏览器读取 Cookie
 2. **手动模式**：手动导入 Cookie 文件
@@ -357,7 +357,7 @@ DownVid 支持两种 Cookie 模式：
    - 访问需要登录的网站
    - 点击扩展图标 → "Export" → 保存为 `cookies.txt`
 
-2. **在 DownVid 中导入**
+2. **在 Framekeep 中导入**
    - 打开设置页面
    - 切换 Cookie 模式为"手动"
    - 点击"选择文件" → 选择刚才导出的 `cookies.txt`
@@ -369,7 +369,7 @@ DownVid 支持两种 Cookie 模式：
 
 ### Cookie 文件格式
 
-DownVid 使用 yt-dlp 的 cookies.txt 格式（Netscape 格式）。
+Framekeep 使用 yt-dlp 的 cookies.txt 格式（Netscape 格式）。
 
 **正确的格式示例：**
 ```
@@ -402,14 +402,14 @@ DownVid 使用 yt-dlp 的 cookies.txt 格式（Netscape 格式）。
 
 **解决方案：**
 ```bash
-xattr -cr /Applications/DownVid.app
+xattr -cr /Applications/Framekeep.app
 ```
 
 ---
 
 ### macOS 隐私权限弹窗
 
-DownVid **不需要**任何特殊权限。如果弹出权限请求，可以拒绝。
+Framekeep **不需要**任何特殊权限。如果弹出权限请求，可以拒绝。
 
 ---
 
@@ -447,7 +447,7 @@ DownVid **不需要**任何特殊权限。如果弹出权限请求，可以拒�
 **解决方案：**
 ```bash
 # 如果使用 AppImage，需要先赋予可执行权限
-chmod +x DownVid-*.AppImage
+chmod +x Framekeep-*.AppImage
 ```
 
 如果提示的是 yt-dlp / ffmpeg 没有执行权限，说明那份文件本身不可用
@@ -477,12 +477,12 @@ sudo pacman -S gtk3 libnotify nss libxss libxtst xdg-utils at-spi2-core libsecre
 
 ### Wayland 兼容性
 
-如果你使用 Wayland（如 GNOME 默认），DownVid 可能有显示问题。
+如果你使用 Wayland（如 GNOME 默认），Framekeep 可能有显示问题。
 
 **解决方案：**
 ```bash
 # 强制使用 X11
-./DownVid-*.AppImage --ozone-platform-hint=auto
+./Framekeep-*.AppImage --ozone-platform-hint=auto
 ```
 
 ---
@@ -495,22 +495,22 @@ sudo pacman -S gtk3 libnotify nss libxss libxtst xdg-utils at-spi2-core libsecre
 
 | 平台 | 路径 |
 |------|------|
-| macOS | `~/Library/Application Support/DownVid/downvid.log` |
-| Windows | `%APPDATA%\DownVid\downvid.log` |
-| Linux | `~/.config/DownVid/downvid.log` |
+| macOS | `~/Library/Application Support/Framekeep/downvid.log` |
+| Windows | `%APPDATA%\Framekeep\downvid.log` |
+| Linux | `~/.config/Framekeep/downvid.log` |
 
 ### 打开开发者工具
 
-在 DownVid 中按 `Ctrl+Shift+I`（Windows/Linux）或 `Cmd+Option+I`（macOS）可以打开开发者工具。
+在 Framekeep 中按 `Ctrl+Shift+I`（Windows/Linux）或 `Cmd+Option+I`（macOS）可以打开开发者工具。
 
 在 Console 标签页中可以看到详细的错误信息。
 
 ### 提交 Issue
 
-如果以上方法都无法解决问题，请 [提交 Issue](https://github.com/yxxbc/downvid/issues)，并包含以下信息：
+如果以上方法都无法解决问题，请 [提交 Issue](https://github.com/oiov/download/issues)，并包含以下信息：
 
 1. **操作系统和版本**（如 macOS 15.0、Windows 11、Ubuntu 24.04）
-2. **DownVid 版本号**（在"关于"页面查看）
+2. **Framekeep 版本号**（在"关于"页面查看）
 3. **错误信息**（开发者工具 Console 中的红色文字）
 4. **复现步骤**（你做了什么操作导致了这个问题）
 5. **日志文件内容**（如果有）
@@ -520,5 +520,5 @@ sudo pacman -S gtk3 libnotify nss libxss libxtst xdg-utils at-spi2-core libsecre
 ## 还是解决不了？
 
 1. 查看 [常见问题](./faq.md)
-2. 搜索 [GitHub Issues](https://github.com/yxxbc/downvid/issues) 看看有没有类似问题
-3. 如果没有，[提交新 Issue](https://github.com/yxxbc/downvid/issues/new)
+2. 搜索 [GitHub Issues](https://github.com/oiov/download/issues) 看看有没有类似问题
+3. 如果没有，[提交新 Issue](https://github.com/oiov/download/issues/new)

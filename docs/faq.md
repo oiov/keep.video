@@ -13,13 +13,13 @@
 
 ## 基础问题
 
-### DownVid 是免费的吗？
+### Framekeep 是免费的吗？
 
-是的，DownVid 是完全免费的开源项目，基于 MIT 协议开源。
+是的，Framekeep 是完全免费的开源项目，基于 MIT 协议开源。
 
 ---
 
-### DownVid 支持哪些平台？
+### Framekeep 支持哪些平台？
 
 | 平台 | 架构 | 支持状态 |
 |------|------|---------|
@@ -31,23 +31,23 @@
 
 ---
 
-### DownVid 和 yt-dlp 有什么关系？
+### Framekeep 和 yt-dlp 有什么关系？
 
-DownVid 是一个图形界面工具，底层使用 yt-dlp 作为下载引擎。简单来说：
+Framekeep 是一个图形界面工具，底层使用 yt-dlp 作为下载引擎。简单来说：
 - **yt-dlp** = 命令行工具，功能强大但需要输入命令
-- **DownVid** = 图形界面，让你用鼠标点击就能下载视频
+- **Framekeep** = 图形界面，让你用鼠标点击就能下载视频
 
-DownVid 会自动处理 yt-dlp 的命令行参数，你只需要粘贴链接、选择画质、点击下载。
+Framekeep 会自动处理 yt-dlp 的命令行参数，你只需要粘贴链接、选择画质、点击下载。
 
-**DownVid 不内置 yt-dlp 和 ffmpeg**：启动时会自动识别你机器上已经装好的版本并直接复用；
-如果没装，「设置 → 运行依赖」里点一下就能自动下载安装（带 SHA-256 校验，放在 DownVid 自己的数据目录里）。
+**Framekeep 不内置 yt-dlp 和 ffmpeg**：启动时会自动识别你机器上已经装好的版本并直接复用；
+如果没装，「设置 → 运行依赖」里点一下就能自动下载安装（带 SHA-256 校验，放在 Framekeep 自己的数据目录里）。
 这样安装包更小，也不会重复占用磁盘。
 
 ---
 
-### DownVid 安全吗？
+### Framekeep 安全吗？
 
-DownVid 是开源项目，代码完全公开，任何人都可以审计。DownVid 本身只是一个下载工具，不会：
+Framekeep 是开源项目，代码完全公开，任何人都可以审计。Framekeep 本身只是一个下载工具，不会：
 - ❌ 窃取你的个人信息
 - ❌ 植入广告或恶意软件
 - ❌ 修改你的系统文件
@@ -55,9 +55,9 @@ DownVid 是开源项目，代码完全公开，任何人都可以审计。DownVi
 
 ---
 
-### DownVid 会下载版权内容吗？
+### Framekeep 会下载版权内容吗？
 
-DownVid 只是一个工具，就像浏览器一样。用户应该遵守当地法律法规，仅下载自己有权下载的内容。
+Framekeep 只是一个工具，就像浏览器一样。用户应该遵守当地法律法规，仅下载自己有权下载的内容。
 
 ---
 
@@ -65,7 +65,7 @@ DownVid 只是一个工具，就像浏览器一样。用户应该遵守当地法
 
 ### 支持下载哪些网站的视频？
 
-DownVid 通过 yt-dlp 支持 **1000+ 个**网站，包括但不限于：
+Framekeep 通过 yt-dlp 支持 **1000+ 个**网站，包括但不限于：
 
 | 分类 | 平台 |
 |------|------|
@@ -89,7 +89,7 @@ DownVid 通过 yt-dlp 支持 **1000+ 个**网站，包括但不限于：
 | Instagram | 1080p |
 | 小红书 | 1080p |
 
-DownVid 会列出所有可用的画质选项供你选择。
+Framekeep 会列出所有可用的画质选项供你选择。
 
 ---
 
@@ -132,7 +132,7 @@ DownVid 会列出所有可用的画质选项供你选择。
 
 ### 可以批量下载吗？
 
-目前 DownVid 每次只能解析一个链接。但你可以：
+目前 Framekeep 每次只能解析一个链接。但你可以：
 1. 下载完成后立即解析下一个链接
 2. 下载任务会在队列中自动处理
 
@@ -140,13 +140,13 @@ DownVid 会列出所有可用的画质选项供你选择。
 
 ### 可以下载播放列表吗？
 
-目前不支持整个播放列表下载。yt-dlp 本身支持播放列表，但 DownVid 的界面目前只处理单个视频。
+目前不支持整个播放列表下载。yt-dlp 本身支持播放列表，但 Framekeep 的界面目前只处理单个视频。
 
 ---
 
 ### 可以下载直播吗？
 
-目前不支持直播下载。DownVid 专注于点播视频下载。
+目前不支持直播下载。Framekeep 专注于点播视频下载。
 
 ---
 
@@ -179,11 +179,11 @@ DownVid 会列出所有可用的画质选项供你选择。
 
 ---
 
-### 如何更新 DownVid？
+### 如何更新 Framekeep？
 
 **Releases 版本：**
 - 内置自动更新功能，有新版本时会提示
-- 也可以手动从 [Releases](https://github.com/yxxbc/downvid/releases) 下载最新版
+- 也可以手动从 [Releases](https://github.com/oiov/download/releases) 下载最新版
 
 **从源码构建：**
 ```bash
@@ -195,42 +195,42 @@ pnpm build          # 重新构建（会一并编译 Go 依赖边车，需要 Go
 
 ---
 
-### 如何完全卸载 DownVid？
+### 如何完全卸载 Framekeep？
 
 **macOS：**
-1. 将 `DownVid.app` 从"应用程序"移到废纸篓
+1. 将 `Framekeep.app` 从"应用程序"移到废纸篓
 2. 删除用户数据（可选）：
    ```bash
-   rm -rf ~/Library/Application\ Support/DownVid
-   rm -rf ~/Library/Caches/DownVid
+   rm -rf ~/Library/Application\ Support/Framekeep
+   rm -rf ~/Library/Caches/Framekeep
    ```
 
 **Windows：**
 1. 打开"设置" → "应用" → "已安装的应用"
-2. 找到 DownVid → 点击"卸载"
+2. 找到 Framekeep → 点击"卸载"
 3. 删除用户数据（可选）：
    ```
-   删除 C:\Users\用户名\AppData\Roaming\DownVid
-   删除 C:\Users\用户名\AppData\Local\DownVid
+   删除 C:\Users\用户名\AppData\Roaming\Framekeep
+   删除 C:\Users\用户名\AppData\Local\Framekeep
    ```
 
 **Linux AppImage：**
 ```bash
 # 删除 AppImage 文件
-rm DownVid-*.AppImage
+rm Framekeep-*.AppImage
 
 # 删除桌面入口（如果创建了）
 rm ~/.local/share/applications/downvid.desktop
 
 # 删除用户数据（可选）
-rm -rf ~/.config/DownVid
+rm -rf ~/.config/Framekeep
 ```
 
 ---
 
 ## 技术相关
 
-### DownVid 用了什么技术栈？
+### Framekeep 用了什么技术栈？
 
 - **Electron** — 跨平台桌面应用框架
 - **Vue 3** — 前端框架（使用 `<script setup>` 语法）
@@ -275,9 +275,9 @@ pnpm 更快、更节省磁盘空间，且 workspace 功能更强大。本项目�
 
 ### 如何报告 Bug？
 
-请 [提交 Issue](https://github.com/yxxbc/downvid/issues/new)，并包含：
+请 [提交 Issue](https://github.com/oiov/download/issues/new)，并包含：
 1. 操作系统和版本
-2. DownVid 版本号
+2. Framekeep 版本号
 3. 复现步骤
 4. 错误信息（开发者工具 Console 中的内容）
 5. 截图或录屏（如有）
