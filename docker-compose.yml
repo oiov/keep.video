@@ -1,6 +1,6 @@
 services:
   website:
-    image: ghcr.io/oiov/download:latest
+    image: ghcr.io/oiov/keep.video:latest
     restart: unless-stopped
     env_file: .env
     ports:

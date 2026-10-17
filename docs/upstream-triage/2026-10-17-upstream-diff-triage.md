@@ -100,7 +100,7 @@ SEO 保留要求：九语言 URL、title、description、canonical、hreflang、
 上游已有 docker.yml，可复用框架，需修复：
 
 1. publish job 添加 packages: write，目前仅有 contents: read。
-2. 镜像使用本项目坐标，例如 ghcr.io/oiov/download；修复两次 tags= 写同一输出导致无法保留两标签的问题，采用多行输出或 metadata action。明确版本、SHA、latest 策略和允许发布的分支。
+2. 镜像使用本项目坐标，例如 ghcr.io/oiov/keep.video；修复两次 tags= 写同一输出导致无法保留两标签的问题，采用多行输出或 metadata action。明确版本、SHA、latest 策略和允许发布的分支。
 3. PR 触发范围覆盖 website/、src/、electron/、shared/、脚本与锁文件，现有过滤只关注容器文件。
 4. 打包两份前端；运行 SEO、Web 回归及容器验收，覆盖门户、语言页、/app/ 资源、WebSocket、404 与文件交付。当前冒烟仅验证健康探针和首页挂载点。
 5. 对承诺支持的架构实际冒烟；上游只冒烟 amd64，arm64 仅构建发布。发布后核验远端 manifest/digest，不只打印标签。
