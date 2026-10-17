@@ -6,7 +6,7 @@
         <div class="max-w-xl mx-auto w-full flex flex-col gap-6">
           <div class="flex flex-col gap-1">
             <h1 class="font-headline text-2xl font-bold leading-tight text-on-surface">{{ t('download.title') }}</h1>
-            <p class="text-on-surface-variant text-sm">{{ t('download.subtitle') }}</p>
+            <p class="text-on-surface-variant text-sm">{{ isWeb ? t('web.subtitle') : t('download.subtitle') }}</p>
           </div>
 
           <UrlInput @parse="parseVideo" />
@@ -65,6 +65,7 @@ import FormatSelector from './FormatSelector.vue'
 import DownloadQueue from './DownloadQueue.vue'
 import { useDownloadStore } from '../stores/download'
 import { t } from '../i18n'
+import { isWeb } from '../runtime-mode'
 import { useDepsStore, readMissingKinds, stripDepMarkers } from '../stores/deps'
 import { readSettings } from '../stores/settings'
 import { useErrorModal } from '../composables/useErrorModal'

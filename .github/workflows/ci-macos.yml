@@ -153,6 +153,9 @@ jobs:
       - name: 解析集成回归
         run: pnpm test:parse:integration
 
+      - name: 单站点服务回归
+        run: pnpm test:web
+
   # ===== macOS 专属：未签名应用的启动与更新 =====
   packaging:
     name: 打包 · 未签名 .app 与产物内容

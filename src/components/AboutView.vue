@@ -18,7 +18,7 @@
           </div>
           <button
             class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
-            @click="showUpdateDrawer = true"
+            v-if="!isWeb" @click="showUpdateDrawer = true"
           >
             <MaterialIcon name="update" :size="16" />
             <span>{{ t('about.checkUpdate') }}</span>
@@ -163,6 +163,7 @@
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
 import { t } from '../i18n'
+import { isWeb } from '../runtime-mode'
 import MaterialIcon from './icons/MaterialIcon.vue'
 import GitHubIcon from './icons/GitHubIcon.vue'
 import UpdateModal from './UpdateModal.vue'

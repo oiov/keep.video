@@ -69,6 +69,10 @@ export interface DownloadTask {
 }
 
 export interface HistoryRecord {
+  status?: 'pending' | 'downloading' | 'completed' | 'error' | 'paused'
+  progress?: number
+  error?: string
+
   id: string
   title: string
   thumbnail: string

@@ -110,8 +110,8 @@
             <!-- Completed -->
             <div v-else-if="task.status === 'completed'" class="flex items-center justify-between mt-1">
               <span class="text-[10px] text-on-surface-variant font-mono">{{ task.selectedFormat.quality }}</span>
-              <button class="p-1 text-on-surface-variant hover:text-primary transition-colors" @click="openFileLocation(task)">
-                <MaterialIcon name="folder_open" :size="16" />
+              <button class="p-1 text-on-surface-variant hover:text-primary transition-colors" @click="openFileLocation(task)" :title="isWeb ? t('web.save') : t('history.openFolder')">
+                <MaterialIcon :name="isWeb ? 'download' : 'folder_open'" :size="16" />
               </button>
             </div>
 
@@ -138,7 +138,7 @@
     </div>
 
     <!-- Storage Info -->
-    <div class="mt-auto pt-4 border-t border-outline-variant/10 flex items-center justify-between text-[11px] text-on-surface-variant">
+    <div v-if="!isWeb" class="mt-auto pt-4 border-t border-outline-variant/10 flex items-center justify-between text-[11px] text-on-surface-variant">
       <div class="flex items-center gap-2">
         <MaterialIcon name="storage" :size="14" />
         <span>{{ t('queue.storage') }}: {{ diskSpaceDisplay }}</span>
@@ -159,6 +159,7 @@ import MaterialIcon from './icons/MaterialIcon.vue'
 import { useDownloadStore } from '../stores/download'
 import { useErrorModal } from '../composables/useErrorModal'
 import { t } from '../i18n'
+import { isWeb } from '../runtime-mode'
 import { abbreviatePath, ensureHomeDir } from '../composables/usePathDisplay'
 import { updateSettings } from '../stores/settings'
 import type { DownloadTask } from '../types'

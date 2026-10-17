@@ -39,6 +39,16 @@ export const LOCALES: Locale[] = ['zh-CN', 'en-US']
  */
 const messages: Record<Locale, Record<string, string>> = {
   'zh-CN': {
+    'web.home': '返回首页',
+    'web.language': 'English',
+    'web.save': '保存到设备',
+    'web.tasks': '当前浏览器的任务',
+    'web.status.pending': '排队中',
+    'web.status.downloading': '处理中',
+    'web.status.completed': '可下载',
+    'web.status.error': '失败，请重新解析',
+    'web.status.paused': '已暂停，可重新解析',
+    'web.subtitle': '在线解析并下载视频、音频与字幕',
     // ===== 通用 =====
     'common.cancel': '取消',
     'common.confirm': '确定',
@@ -340,6 +350,16 @@ const messages: Record<Locale, Record<string, string>> = {
     'err.depMissing': '未找到可用的 {kind}，请在「设置 → 运行依赖」中下载后重试',
   },
   'en-US': {
+    'web.home': 'Home',
+    'web.language': '中文',
+    'web.save': 'Save to device',
+    'web.tasks': 'Tasks in this browser',
+    'web.status.pending': 'Queued',
+    'web.status.downloading': 'Processing',
+    'web.status.completed': 'Ready to save',
+    'web.status.error': 'Failed; parse again',
+    'web.status.paused': 'Paused; parse again',
+    'web.subtitle': 'Parse and download video, audio and subtitles online',
     // ===== Common =====
     'common.cancel': 'Cancel',
     'common.confirm': 'OK',

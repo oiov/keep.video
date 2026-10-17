@@ -14,6 +14,8 @@
     </div>
     
     <!-- Navigation -->
+    <a v-if="isWeb" href="/" class="ml-3 text-sm text-primary">{{ t('web.home') }}</a>
+    <button v-if="isWeb" class="ml-3 text-sm text-primary" @click="setLocale(locale === 'en-US' ? 'zh-CN' : 'en-US')">{{ t('web.language') }}</button>
     <div class="flex flex-1 justify-end gap-6" style="-webkit-app-region: no-drag">
       <nav class="flex items-center gap-6">
         <div 
@@ -37,7 +39,7 @@
       
       <!-- Settings Button -->
       <button 
-        aria-label="Settings" 
+        v-if="!isWeb" aria-label="Settings"
         class="flex items-center justify-center rounded-md size-8 bg-surface-container-highest text-on-surface hover:bg-surface-variant transition-colors"
         @click="$emit('change-tab', 'settings')"
       >
@@ -45,7 +47,7 @@
       </button>
 
       <!-- Window Controls (non-macOS) -->
-      <div v-if="!isMac" class="flex items-center gap-0.5 ml-2" style="-webkit-app-region: no-drag">
+      <div v-if="!isWeb && !isMac" class="flex items-center gap-0.5 ml-2" style="-webkit-app-region: no-drag">
         <button
           class="flex items-center justify-center size-8 rounded-md hover:bg-surface-variant transition-colors"
           @click="winCtrl.minimize()"
@@ -72,7 +74,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import MaterialIcon from './icons/MaterialIcon.vue'
-import { t } from '../i18n'
+import { t, locale, setLocale } from '../i18n'
+import { isWeb } from '../runtime-mode'
 import type { TabType } from '../types'
 
 defineProps<{
@@ -83,7 +86,7 @@ defineEmits<{
   (e: 'change-tab', tab: TabType): void
 }>()
 
-const isMac = navigator.platform.includes('Mac')
+const isMac = !isWeb && navigator.platform.includes('Mac')
 const isMaximized = ref(false)
 
 const winCtrl = {

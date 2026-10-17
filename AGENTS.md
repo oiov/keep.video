@@ -455,3 +455,11 @@ CHANGELOG 用 `## [Unreleased]` 段落累积改动。发布时再一次性改成
   `main` 未开启分支保护，维护者可直接推送；分支与 PR 流程是对外部贡献者的建议
 - 禁止在pr、issue、代码中、注释、commit等全部地方透露或上传本地隐私，敏感信息，开发者的网路环境等
 - `AGENTS.md`（本文件）与 `CLAUDE.md` 是同一份知识的两个语言版本，**改其一时必须同步另一份**
+
+
+## 单站点服务器模式
+
+- scripts/build-website.mjs 生成 108 个 SEO 页面，docker/web/ 构建工具，docker/server/ 同域托管；/app/ 和 /api/ 不覆盖门户。
+- pnpm build:web 构建两份产物；pnpm test:web 验证会话、私有文件与路由，三个平台 integration job 均运行。镜像工作流 .github/workflows/docker.yml 替代 Worker 部署。
+- STORAGE_DRIVER=local|r2 选择存储；R2_ENDPOINT、R2_BUCKET、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY 仅服务端读取。R2 仍需本地工作目录与持久化任务清单。详见 docs/server-deployment.md。
+- 服务端负责全局队列和匿名会话隔离，不能公开桌面管理 IPC；仅接受服务端解析出的格式。成品经 /api/files/:id 授权交付。

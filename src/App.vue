@@ -23,18 +23,19 @@
     />
 
     <!-- 设置浮窗（居中模态，与错误/更新提示同一形态） -->
-    <SettingsView :visible="showSettings" @update:visible="showSettings = $event" />
+    <SettingsView v-if="!isWeb" :visible="showSettings" @update:visible="showSettings = $event" />
 
     <!-- Auto Update Modal -->
-    <UpdateModal :visible="showUpdate" @close="showUpdate = false" />
+    <UpdateModal v-if="!isWeb" :visible="showUpdate" @close="showUpdate = false" />
 
     <!-- 缺少运行依赖时的下载引导 -->
-    <DepsPrompt />
+    <DepsPrompt v-if="!isWeb" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
+import { isWeb } from './runtime-mode'
 import Header from './components/Header.vue'
 import DownloadView from './components/DownloadView.vue'
 import HistoryView from './components/HistoryView.vue'
@@ -81,7 +82,7 @@ onMounted(async () => {
 
   // 首次启动探测运行依赖：缺 yt-dlp / ffmpeg 时直接弹下载引导，
   // 用户粘贴链接前就能装好，而不是等到解析失败才发现。
-  void deps.refresh().then(() => {
+  if (!isWeb) void deps.refresh().then(() => {
     if (deps.missingRequired.length) {
       deps.promptForMissing(deps.missingRequired.map(d => d.kind))
     }
@@ -118,7 +119,7 @@ onMounted(async () => {
   // 延迟 3 秒后检查更新，避免影响启动速度。
   // 以返回值为准弹窗，不依赖 update:status 事件；检查失败时静默，不打扰启动。
   // 关闭了自动检查则完全不请求（主进程侧也会再挡一次）。
-  if (saved.autoCheckUpdate) {
+  if (!isWeb && saved.autoCheckUpdate) {
     setTimeout(async () => {
       try {
         const result = await window.electronAPI?.checkForUpdates?.()

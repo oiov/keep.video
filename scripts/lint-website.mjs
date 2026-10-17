@@ -41,6 +41,7 @@ try {
   for(const m of html.matchAll(/(?:href|src)="([^"#]+)(?:#[^"]*)?"/g)){
    const href=m[1]
    if(!href.startsWith('/'))continue
+   if(href === '/app/')continue
    const target=path.join(out,href.endsWith('/')?href+'index.html':href)
    assert(fs.existsSync(target),'损坏的内链/资源：'+href)
   }

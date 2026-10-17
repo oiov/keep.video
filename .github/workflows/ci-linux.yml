@@ -197,6 +197,9 @@ jobs:
       - name: 解析集成回归
         run: pnpm test:parse:integration
 
+      - name: 单站点服务回归
+        run: pnpm test:web
+
   # ===== 构建与打包 =====
   package:
     name: 打包 · 产物内容校验

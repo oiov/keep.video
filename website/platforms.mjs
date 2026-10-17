@@ -15,8 +15,8 @@ export const platforms = [
       "Download permitted YouTube videos, audio and subtitles with Keep Video. Learn about format selection, FFmpeg merging and JavaScript runtime setup."
     ],
     "intro": [
-      "Keep Video 通过 yt-dlp 提供 YouTube 视频下载支持，在 macOS、Windows 和 Linux 本地运行。此网页介绍操作方法，实际解析和保存需要安装桌面应用。",
-      "Keep Video supports YouTube video downloading through yt-dlp on macOS, Windows and Linux. This page explains the workflow; install the desktop app to parse links and save files."
+      "Keep Video 通过 yt-dlp 提供 YouTube 视频下载支持，在 macOS、Windows 和 Linux 本地运行。可以直接使用在线工具解析并保存文件，也可以安装桌面应用。",
+      "Keep Video supports YouTube video downloading through yt-dlp on macOS, Windows and Linux. Use the online tool to parse a link and save the completed file to your device. Desktop installers are also available."
     ],
     "sections": [
       [
@@ -91,8 +91,8 @@ export const platforms = [
       "Save accessible Bilibili videos and audio on your computer with Keep Video. Learn about BV links, multi-part videos, login-dependent quality and merging."
     ],
     "intro": [
-      "Keep Video 通过 yt-dlp 提供 Bilibili 视频下载支持，在 macOS、Windows 和 Linux 本地运行。此网页介绍操作方法，实际解析和保存需要安装桌面应用。",
-      "Keep Video supports Bilibili video downloading through yt-dlp on macOS, Windows and Linux. This page explains the workflow; install the desktop app to parse links and save files."
+      "Keep Video 通过 yt-dlp 提供 Bilibili 视频下载支持，在 macOS、Windows 和 Linux 本地运行。可以直接使用在线工具解析并保存文件，也可以安装桌面应用。",
+      "Keep Video supports Bilibili video downloading through yt-dlp on macOS, Windows and Linux. Use the online tool to parse a link and save the completed file to your device. Desktop installers are also available."
     ],
     "sections": [
       [
@@ -167,8 +167,8 @@ export const platforms = [
       "Download accessible, permitted TikTok videos with Keep Video for Windows, macOS and Linux. Learn about shared links, formats and extraction troubleshooting."
     ],
     "intro": [
-      "Keep Video 通过 yt-dlp 提供 TikTok 视频下载支持，在 macOS、Windows 和 Linux 本地运行。此网页介绍操作方法，实际解析和保存需要安装桌面应用。",
-      "Keep Video supports TikTok video downloading through yt-dlp on macOS, Windows and Linux. This page explains the workflow; install the desktop app to parse links and save files."
+      "Keep Video 通过 yt-dlp 提供 TikTok 视频下载支持，在 macOS、Windows 和 Linux 本地运行。可以直接使用在线工具解析并保存文件，也可以安装桌面应用。",
+      "Keep Video supports TikTok video downloading through yt-dlp on macOS, Windows and Linux. Use the online tool to parse a link and save the completed file to your device. Desktop installers are also available."
     ],
     "sections": [
       [
@@ -243,8 +243,8 @@ export const platforms = [
       "Instagram video download on Windows, macOS and Linux with Keep Video. Save permitted videos and Reels; learn about URLs, login requirements and formats."
     ],
     "intro": [
-      "Keep Video 通过 yt-dlp 提供 Instagram 视频下载支持，在 macOS、Windows 和 Linux 本地运行。此网页介绍操作方法，实际解析和保存需要安装桌面应用。",
-      "Keep Video supports Instagram video downloading through yt-dlp on macOS, Windows and Linux. This page explains the workflow; install the desktop app to parse links and save files."
+      "Keep Video 通过 yt-dlp 提供 Instagram 视频下载支持，在 macOS、Windows 和 Linux 本地运行。可以直接使用在线工具解析并保存文件，也可以安装桌面应用。",
+      "Keep Video supports Instagram video downloading through yt-dlp on macOS, Windows and Linux. Use the online tool to parse a link and save the completed file to your device. Desktop installers are also available."
     ],
     "sections": [
       [
@@ -319,8 +319,8 @@ export const platforms = [
       "Save permitted Vimeo videos with Keep Video on your desktop. Learn about video page URLs, source quality, password access and privacy restrictions."
     ],
     "intro": [
-      "Keep Video 通过 yt-dlp 提供 Vimeo 视频下载支持，在 macOS、Windows 和 Linux 本地运行。此网页介绍操作方法，实际解析和保存需要安装桌面应用。",
-      "Keep Video supports Vimeo video downloading through yt-dlp on macOS, Windows and Linux. This page explains the workflow; install the desktop app to parse links and save files."
+      "Keep Video 通过 yt-dlp 提供 Vimeo 视频下载支持，在 macOS、Windows 和 Linux 本地运行。可以直接使用在线工具解析并保存文件，也可以安装桌面应用。",
+      "Keep Video supports Vimeo video downloading through yt-dlp on macOS, Windows and Linux. Use the online tool to parse a link and save the completed file to your device. Desktop installers are also available."
     ],
     "sections": [
       [

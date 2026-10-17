@@ -69,3 +69,9 @@ Thumbs.db
 # 本地调研与官网构建产物
 work/
 website/dist/
+
+# 服务端构建和运行数据
+docker/dist-web/
+docker/node_modules/
+data/
+.env

@@ -296,3 +296,12 @@ body {
   -webkit-font-feature-settings: 'liga';
   -webkit-font-smoothing: antialiased;
 }
+
+/* 浏览器页面取消桌面拖拽，移动端顺序展示解析和队列。 */
+html[data-runtime="web"] header { -webkit-app-region: no-drag; flex-wrap: wrap; gap: 12px; }
+@media (max-width: 700px) {
+  html[data-runtime="web"] #app { min-width: 0; }
+  html[data-runtime="web"] main > .flex-1.flex { flex-direction: column; overflow: auto; }
+  html[data-runtime="web"] main > .flex-1.flex > section { width: 100%; min-height: 360px; flex-shrink: 0; }
+  html[data-runtime="web"] header nav { gap: 12px; }
+}
