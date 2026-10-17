@@ -8,7 +8,7 @@
 2. 将 docker-compose.yml 和 docker/.env.example 复制到服务器同一目录，后者命名为 .env。
 3. 设置 SITE_URL=https://keep.video，然后执行 docker compose pull 和 docker compose up -d。
 4. HTTPS 反向代理转发到 127.0.0.1:6080，支持 WebSocket Upgrade，并将下载响应超时设置为足够长。应用只暴露回环端口。Caddy 可使用 keep.video 站点块内的 reverse_proxy 127.0.0.1:6080。
-5. 确认首页、/zh-cn/、/app/、/healthz 正常后，移除旧 Worker 自定义域绑定，再切换域名到服务器。
+5. 确认首页、/zh/、/app/、/healthz 正常后，移除旧 Worker 自定义域绑定，再切换域名到服务器。
 
 ## 环境变量
 
@@ -45,3 +45,5 @@ R2 模式仍先本地下载合并，上传成功后删除工作文件。桶无�
 服务重启将执行中任务标记失败，可重新解析；已完成文件保留到过期。下载器经过受限公网代理，部署方还应设置容器出站网络策略。磁盘按并发与文件上限预留空间。
 
 上游来源为 yxxbc/downvid 的 WebUI 架构和下载引擎；Keep Video 独立运营，不是上游官方托管服务。
+
+在线工具默认使用英文，中文入口 /zh/app/；九语言地址与门户一致。公开在线页可索引并列入 sitemap，用户任务及文件仍由会话隔离，/api/ 保持 noindex。旧 /zh-cn/ 地址永久跳转到 /zh/。

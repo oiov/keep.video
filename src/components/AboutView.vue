@@ -1,242 +1,61 @@
 <template>
   <div class="flex-1 bg-surface overflow-y-auto">
     <div class="max-w-2xl mx-auto px-6 py-8">
-      <!-- Header -->
-      <div class="mb-8">
-        <h1 class="font-headline text-2xl font-bold text-on-surface">{{ t('about.title') }}</h1>
-      </div>
-
-      <!-- App Info Card -->
-      <div class="bg-linear-to-br from-primary/5 to-secondary/5 rounded-2xl p-6 mb-6 border border-outline-variant/10">
-        <div class="flex items-center gap-4">
-          <div class="w-16 h-16 rounded-xl bg-primary/10 flex items-center justify-center shrink-0 overflow-hidden">
-            <img src="@/assets/logo.png" alt="Keep Video" class="w-full h-full object-contain" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <h2 class="font-headline text-xl font-bold text-on-surface">Keep Video</h2>
-            <p class="text-on-surface-variant text-sm mt-0.5">v{{ appVersion }}</p>
-          </div>
-          <button
-            class="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-primary text-on-primary text-sm font-medium hover:bg-primary/90 transition-colors shrink-0"
-            v-if="!isWeb" @click="showUpdateDrawer = true"
-          >
-            <MaterialIcon name="update" :size="16" />
-            <span>{{ t('about.checkUpdate') }}</span>
-          </button>
+      <component :is="isWeb ? 'h2' : 'h1'" class="font-headline text-2xl font-bold text-on-surface mb-6">{{ t('about.title') }}</component>
+      <div class="flex items-center gap-4 mb-6">
+        <img src="@/assets/logo.png" alt="" class="size-12 object-contain" />
+        <div class="flex-1">
+          <h3 class="font-headline text-xl font-bold text-on-surface">Keep Video</h3>
+          <p v-if="!isWeb" class="text-sm text-on-surface-variant">v{{ appVersion }}</p>
         </div>
-      </div>
-
-      <!-- Description：一句话说明即可，详细能力在 README 与文档里 -->
-      <div class="bg-surface-container-low rounded-xl px-4 py-3 mb-6 border border-outline-variant/10">
-        <p class="text-xs text-on-surface-variant leading-relaxed">
-          {{ t('about.intro') }}
-        </p>
-      </div>
-
-      <!-- Links -->
-      <div class="space-y-3 mb-6">
-        <button
-          @click="openExternal(REPO_URL)"
-          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-container-low hover:bg-surface-container-highest transition-colors group border border-outline-variant/10 text-left"
-        >
-          <div class="w-9 h-9 rounded-lg bg-surface-container-highest flex items-center justify-center group-hover:bg-surface transition-colors">
-            <GitHubIcon :size="18" class="text-on-surface" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-on-surface">GitHub</p>
-            <p class="text-xs text-on-surface-variant truncate">{{ repoLabel }}</p>
-          </div>
-          <MaterialIcon name="arrow_forward_ios" :size="14" class="text-on-surface-variant" />
-        </button>
-
-        <button
-          @click="openExternal(ISSUES_URL)"
-          class="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-surface-container-low hover:bg-surface-container-highest transition-colors group border border-outline-variant/10 text-left"
-        >
-          <div class="w-9 h-9 rounded-lg bg-surface-container-highest flex items-center justify-center group-hover:bg-surface transition-colors">
-            <MaterialIcon name="feedback" :size="18" class="text-on-surface" />
-          </div>
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-medium text-on-surface">{{ t('about.feedback') }}</p>
-            <p class="text-xs text-on-surface-variant">{{ t('about.feedbackHint') }}</p>
-          </div>
-          <MaterialIcon name="arrow_forward_ios" :size="14" class="text-on-surface-variant" />
+        <button v-if="!isWeb" class="px-4 py-2 rounded-lg bg-primary text-on-primary text-sm" @click="showUpdateDrawer = true">
+          {{ t('about.checkUpdate') }}
         </button>
       </div>
-
-      <div class="space-y-3 mb-6 text-sm text-primary"><p><a href="https://keep.video" target="_blank" rel="noopener noreferrer">keep.video ↗</a></p><p><a href="mailto:support@keep.video">support@keep.video</a></p></div>
-
-      <!-- 贡献者：固定名单（不请求 API、不显示提交次数） -->
-      <div class="mb-6">
-        <h3 class="text-xs font-medium text-on-surface-variant uppercase tracking-wider mb-3">{{ t('about.contributors') }}</h3>
-        <ul class="m-0 list-none p-0 grid grid-cols-2 sm:grid-cols-3 gap-3">
-          <li v-for="member in CONTRIBUTORS" :key="member.login" class="min-w-0">
-            <a
-              :href="member.url"
-              target="_blank"
-              rel="noopener noreferrer"
-              class="flex min-w-0 flex-col items-center gap-2.5 rounded-xl bg-surface-container-low border border-outline-variant/10 p-4 transition-colors hover:bg-surface-container-highest"
-            >
-              <div class="relative">
-                <div class="size-14 rounded-full overflow-hidden bg-surface-container-highest flex items-center justify-center">
-                  <img
-                    v-if="!brokenAvatars.has(member.login)"
-                    :src="avatarUrl(member.login)"
-                    :alt="member.login"
-                    class="w-full h-full object-cover"
-                    loading="lazy"
-                    @error="brokenAvatars.add(member.login)"
-                  />
-                  <span v-else class="text-base font-bold text-on-surface-variant">
-                    {{ member.login.slice(0, 1).toUpperCase() }}
-                  </span>
-                </div>
-                <span
-                  v-if="member.role"
-                  class="absolute -top-1 -right-2 px-1 py-0.5 text-[8px] font-bold rounded-sm leading-none"
-                  :class="member.role === 'DEV' ? 'bg-primary text-on-primary' : 'bg-tertiary-container text-on-tertiary-container'"
-                >
-                  {{ member.role }}
-                </span>
-              </div>
-              <span class="w-full text-center text-xs font-medium text-on-surface wrap-anywhere">{{ member.login }}</span>
-            </a>
-          </li>
-        </ul>
+      <p class="text-sm text-on-surface-variant leading-relaxed mb-8">{{ isWeb ? t('web.about') : t('about.intro') }}</p>
+      <h3 class="font-headline text-base font-semibold text-on-surface mb-2">{{ t('web.support') }}</h3>
+      <p class="text-sm text-on-surface-variant mb-4">{{ t('web.supportHint') }}</p>
+      <div class="flex flex-wrap gap-5 text-sm text-primary mb-8">
+        <a :href="guideUrl" target="_blank" rel="noopener noreferrer">{{ t('web.guides') }}</a>
+        <a href="mailto:support@keep.video">support@keep.video</a>
       </div>
-
-      <!-- 开源组件致谢：Material Symbols 是 Apache-2.0，随应用分发需保留声明 -->
-      <div class="mb-6">
-        <h3 class="text-xs font-medium text-on-surface-variant uppercase tracking-wider mb-3">{{ t('about.openSource') }}</h3>
-        <div class="bg-surface-container-low rounded-xl p-4 border border-outline-variant/10 flex flex-col gap-2">
-          <div v-for="item in ossCredits" :key="item.name" class="flex items-baseline justify-between gap-3 text-xs">
-            <span class="text-on-surface">{{ item.name }}</span>
-            <span class="text-on-surface-variant text-right">
-              {{ item.license }}
-              <a
-                v-if="item.url"
-                class="text-tertiary hover:underline underline-offset-2 ml-1"
-                @click="openExternal(item.url)"
-              >{{ t('about.homepage') }}</a>
-            </span>
+      <!-- 保留组件许可名称；版权和完整许可仍随软件分发。 -->
+      <details class="border-t border-outline-variant/20 pt-4">
+        <summary class="text-sm text-on-surface-variant cursor-pointer">{{ t('about.openSource') }}</summary>
+        <dl class="mt-4 space-y-2">
+          <div v-for="item in ossCredits" :key="item.name" class="flex justify-between gap-4 text-xs text-on-surface-variant">
+            <dt>{{ item.name }}</dt><dd>{{ item.license }}</dd>
           </div>
-        </div>
-      </div>
-
-      <!-- Tech Stack -->
-      <div class="mb-6">
-        <h3 class="text-xs font-medium text-on-surface-variant uppercase tracking-wider mb-3">{{ t('about.techStack') }}</h3>
-        <div class="flex flex-wrap gap-2">
-          <span
-            v-for="tech in techStack"
-            :key="tech.name"
-            class="flex items-center gap-1.5 text-xs px-3 py-1.5 bg-surface-container-low rounded-lg text-on-surface border border-outline-variant/10"
-            :title="tech.note || tech.name"
-          >
-            <MaterialIcon v-if="tech.icon" :name="tech.icon" :size="14" class="text-on-surface-variant" />
-            {{ tech.name }}
-          </span>
-        </div>
-      </div>
-
-      <!-- License -->
-      <div class="flex items-center justify-between py-4 border-t border-outline-variant/20">
-        <div class="flex items-center gap-2">
-          <MaterialIcon name="gavel" :size="16" class="text-on-surface-variant" />
-          <span class="text-sm text-on-surface-variant">{{ t('about.license') }}</span>
-        </div>
-        <span class="text-xs font-medium text-primary bg-primary/10 px-3 py-1 rounded-full">MIT License</span>
-      </div>
-
-      <!-- Copyright -->
-      <div class="text-center pt-4">
-        <p class="text-xs text-on-surface-variant/60">© 2026 Keep Video</p>
-        <p class="text-xs text-on-surface-variant/40 mt-1">Based on DownVid (yxxbc) and <a href="https://github.com/cshuangyy/videdown" class="hover:underline">Videdown</a> by cshuangyy (MIT License)</p>
-      </div>
+        </dl>
+      </details>
+      <p class="mt-8 text-xs text-on-surface-variant">© 2026 Keep Video · MIT License</p>
     </div>
-
-    <!-- Update Modal -->
-    <UpdateModal :visible="showUpdateDrawer" @close="showUpdateDrawer = false" />
+    <UpdateModal v-if="!isWeb" :visible="showUpdateDrawer" @close="showUpdateDrawer = false" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { t } from '../i18n'
 import { isWeb } from '../runtime-mode'
-import MaterialIcon from './icons/MaterialIcon.vue'
-import GitHubIcon from './icons/GitHubIcon.vue'
+import { webLocale } from '../../shared/web-routes'
 import UpdateModal from './UpdateModal.vue'
-import { ISSUES_URL, REPO_SLUG, REPO_URL } from '../../shared/app'
 
-/** 界面展示用的仓库标识（去掉 https:// 前缀） */
-const repoLabel = `github.com/${REPO_SLUG}`
-
-/**
- * 贡献者：**固定名单**，不请求 GitHub API。
- *
- * 原先从 `/contributors` 拉取，而未认证请求限额 60 次/小时且按 IP 共享，
- * 很容易 403；客户端带 token 不可行。改为手写名单：
- * 稳定、离线可用、不再有失败态，也不用为"提交次数"这种会变化的数字做缓存。
- *
- * 顺序即展示顺序；`role` 只用于身份标。原作者不必额外标注 —— 许可证里已经写明。
- */
-const CONTRIBUTORS = [
-  { login: 'oiov', url: 'https://github.com/oiov', role: 'DEV' },
-  { login: 'cshuangyy', url: 'https://github.com/cshuangyy' },
-  { login: 'hailaij', url: 'https://github.com/hailaij', role: 'CONTRIBUTOR' },
-  { login: 'jwfstars', url: 'https://github.com/jwfstars', role: 'CONTRIBUTOR' },
-]
-
-/** 头像地址：固定名单用 GitHub 头像，不依赖接口 */
-function avatarUrl(login: string): string {
-  return `https://github.com/${login}.png?size=112`
-}
-
-
-/** 技术栈：与 README、package.json 保持一致，改其一时同步另一处 */
-const techStack = [
-  { name: 'Electron', icon: 'desktop_windows' },
-  { name: 'Vue 3', icon: 'code' },
-  { name: 'TypeScript', icon: 'data_object' },
-  { name: 'Tailwind CSS', icon: 'palette' },
-  { name: 'Vite', icon: 'bolt' },
-  { name: 'Pinia', icon: 'database' },
-  { name: 'Go', icon: 'memory', get note() { return t('about.techGo') } },
-  { name: 'yt-dlp', icon: 'download', get note() { return t('about.techNotBundled') } },
-  { name: 'FFmpeg', icon: 'movie', get note() { return t('about.techNotBundled') } },
-]
-
-/**
- * 随应用分发的开源组件与许可。
- * Material Symbols 是 Apache-2.0，分发时须保留声明，因此必须列出。
- */
-const ossCredits = [
-  { name: 'Material Symbols', license: 'Apache-2.0', url: 'https://fonts.google.com/icons' },
-  { name: 'yt-dlp', license: 'Unlicense', url: 'https://github.com/yt-dlp/yt-dlp' },
-  { name: 'FFmpeg (ffmpeg-static)', license: 'GPL-3.0', url: 'https://github.com/eugeneware/ffmpeg-static' },
-  { name: 'Electron', license: 'MIT', url: 'https://www.electronjs.org' },
-  { name: 'Vue', license: 'MIT', url: 'https://vuejs.org' },
-]
-
-const appVersion = ref('1.0.0')
-const showUpdateDrawer = ref(false)
-
-const brokenAvatars = reactive(new Set<string>())
-
-onMounted(async () => {
-  try {
-    const version = await window.electronAPI?.app?.getVersion?.()
-    if (version) appVersion.value = version
-  } catch {}
+const guideUrl = computed(() => {
+  const prefix = isWeb ? webLocale(location.pathname)?.prefix : ''
+  return (isWeb ? '/' : 'https://keep.video/') + (prefix ? prefix + '/' : '') + 'guides/'
 })
-
-async function openExternal(url: string) {
-  try {
-    await window.electronAPI.shell.openExternal(url)
-  } catch {}
-}
+const ossCredits = [
+  { name: 'Material Symbols', license: 'Apache-2.0' },
+  { name: 'yt-dlp', license: 'Unlicense' },
+  { name: 'FFmpeg', license: 'GPL-3.0' },
+  ...(!isWeb ? [{ name: 'Electron', license: 'MIT' }] : []),
+  { name: 'Vue', license: 'MIT' },
+]
+const appVersion = ref('')
+const showUpdateDrawer = ref(false)
+onMounted(async () => {
+  if (isWeb) return
+  try { appVersion.value = await window.electronAPI?.app?.getVersion?.() || '' } catch {}
+})
 </script>
-
-<style scoped>
-</style>

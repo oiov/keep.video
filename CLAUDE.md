@@ -196,7 +196,7 @@ workflow references, all three.
 - 运行 pnpm website:build、pnpm lint:website；部署输出目录为 website/dist。
 - SITE_URL 或配置中的 origin 为空时输出 noindex、空 sitemap，不输出占位域名。
 - Vercel 预览及 SITE_PREVIEW=1 始终 noindex；生产 URL 统一尾斜杠。
-- 双语正文、canonical、hreflang、站点地图、内链必须一起维护。
+- 九语言正文、canonical、hreflang、站点地图、内链必须一起维护。
 - 资源放 website/assets，不依赖原仓库 raw URL；不编造评分和下载量。
 - 新仓库发布安装包后才把 releaseAvailable 改为 true；上游下载入口必须标注来源。
 - 详细发布和维护流程见 `website/README.md`。
@@ -446,7 +446,9 @@ under `## [Unreleased]`. When releasing, rewrite it to `## [x.y.z] - <date>` and
 
 ## 单站点服务器模式
 
-- scripts/build-website.mjs 生成 108 个 SEO 页面，docker/web/ 构建工具，docker/server/ 同域托管；/app/ 和 /api/ 不覆盖门户。
+- scripts/build-website.mjs 生成 117 个 SEO 页面，docker/web/ 构建工具，docker/server/ 同域托管；/app/ 和 /api/ 不覆盖门户。
 - pnpm build:web 构建两份产物；pnpm test:web 验证会话、私有文件与路由，三个平台 integration job 均运行。镜像工作流 .github/workflows/docker.yml 替代 Worker 部署。
 - STORAGE_DRIVER=local|r2 选择存储；R2_ENDPOINT、R2_BUCKET、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY 仅服务端读取。R2 仍需本地工作目录与持久化任务清单。详见 docs/server-deployment.md。
 - 服务端负责全局队列和匿名会话隔离，不能公开桌面管理 IPC；仅接受服务端解析出的格式。成品经 /api/files/:id 授权交付。
+
+- 在线页默认英文 /app/，中文 /zh/app/，其余语言与 shared/site-locales.json 一致；旧 /zh-cn/ 永久跳转到 /zh/。公开说明与表单共用导航，HTML 可索引，私有 /api/ 保持 noindex。浏览器额外七语词条位于 src/i18n/web-locales.json，新增键须同步并通过 lint:i18n。

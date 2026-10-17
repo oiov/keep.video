@@ -1,5 +1,5 @@
 <template>
-  <section class="w-[45%] bg-surface-container-low flex flex-col pt-6 px-6 pb-6 shadow-ambient z-10 border-l border-outline-variant/10">
+  <section :class="{ 'tool-queue': isWeb }" class="w-[45%] bg-surface-container-low flex flex-col pt-6 px-6 pb-6 shadow-ambient z-10 border-l border-outline-variant/10">
     <div class="flex items-center justify-between mb-4">
       <h2 class="font-headline text-base font-bold text-on-surface">{{ t('queue.title') }}</h2>
       <div class="flex items-center gap-2">
@@ -16,6 +16,7 @@
         </span>
         <button
           class="p-1.5 text-on-surface-variant hover:text-on-surface rounded-sm hover:bg-surface-container-highest transition-colors"
+          :aria-label="t('common.clear')"
           @click="clearCompleted"
         >
           <MaterialIcon name="clear_all" :size="18" />
@@ -60,7 +61,7 @@
               <h4 class="font-headline text-xs font-bold truncate" :class="task.status === 'pending' ? 'text-on-surface opacity-70' : 'text-on-surface'">
                 {{ task.videoInfo.title }}
               </h4>
-              <button class="text-on-surface-variant hover:text-error transition-colors shrink-0" @click="removeTask(task.id)">
+              <button class="text-on-surface-variant hover:text-error transition-colors shrink-0" :aria-label="t('common.delete')" @click="removeTask(task.id)">
                 <MaterialIcon name="close" :size="14" />
               </button>
             </div>
@@ -69,7 +70,7 @@
             <template v-if="task.status === 'downloading' || task.status === 'merging'">
               <div class="flex items-center justify-between text-[10px] text-on-surface-variant font-mono">
                 <span>
-                  <span v-if="task.status === 'merging'" class="text-primary">{{ task.statusMessage || t('queue.statusMerging') }}</span>
+                  <span v-if="task.status === 'merging'" class="text-primary">{{ (!isWeb && task.statusMessage) || t('queue.statusMerging') }}</span>
                   <span v-else-if="task.speed">{{ task.speed }} - ETA {{ task.eta }}</span>
                   <span v-else>{{ t('queue.statusDownloading') }}</span>
                 </span>
@@ -110,8 +111,9 @@
             <!-- Completed -->
             <div v-else-if="task.status === 'completed'" class="flex items-center justify-between mt-1">
               <span class="text-[10px] text-on-surface-variant font-mono">{{ task.selectedFormat.quality }}</span>
-              <button class="p-1 text-on-surface-variant hover:text-primary transition-colors" @click="openFileLocation(task)" :title="isWeb ? t('web.save') : t('history.openFolder')">
+              <button class="p-1 text-on-surface-variant hover:text-primary transition-colors" :class="{ 'flex items-center gap-1 text-xs font-semibold': isWeb }" @click="openFileLocation(task)" :title="isWeb ? t('web.save') : t('history.openFolder')">
                 <MaterialIcon :name="isWeb ? 'download' : 'folder_open'" :size="16" />
+                <span v-if="isWeb">{{ t('web.save') }}</span>
               </button>
             </div>
 

@@ -1,11 +1,11 @@
 import { ref, computed } from 'vue'
 
 /**
- * 轻量界面国际化（zh-CN / en-US）。
+ * 轻量界面国际化：桌面中英双语，浏览器与门户共用九种语言。
  *
  * ## 为什么不用 vue-i18n
  *
- * 本项目刻意零依赖：语言只有两种、没有复数/性别/日期格式化的复杂需求，
+ * 本项目沿用轻量词条表；当前没有复杂的复数、性别与消息格式化需求，
  * 一个 `Record` + 响应式语言标记就够了。引入 vue-i18n 会增加一个运行时依赖，
  * 而它的全部能力这里用不上——与「没有 ESLint/Prettier」是同一套理由。
  *
@@ -28,7 +28,8 @@ import { ref, computed } from 'vue'
  * 按「已知原文 → 词条」映射兜底翻译。
  */
 
-export type Locale = 'zh-CN' | 'en-US'
+type DesktopLocale = 'zh-CN' | 'en-US'
+export type Locale = DesktopLocale | 'es' | 'pt-BR' | 'de' | 'fr' | 'ja' | 'ko' | 'ru'
 export const LOCALES: Locale[] = ['zh-CN', 'en-US']
 
 /**
@@ -37,8 +38,33 @@ export const LOCALES: Locale[] = ['zh-CN', 'en-US']
  * `{name}` 占位符由 `t(key, params)` 替换；两份词条的占位符集合必须一致，
  * `lint:i18n` 会校验（漏掉占位符会让参数永远显示成 `{name}`）。
  */
-const messages: Record<Locale, Record<string, string>> = {
+const messages: Record<DesktopLocale, Record<string, string>> & Partial<Record<Locale, Record<string, string>>> = {
   'zh-CN': {
+    'web.inputLabel': "视频链接",
+    'web.example': "试用示例链接",
+    'web.exampleHint': "已填入 X / Twitter 示例视频。可直接解析，或替换为你的链接。",
+    'web.inputHint': "支持公开的视频页面和媒体链接，无需登录。",
+    'web.parse': "解析链接",
+    'web.connectFailed': "暂时无法连接在线服务，请稍后重试。",
+    'web.disconnected': "连接已断开，请刷新页面重试。",
+    'web.requestFailed': "请求未能完成。请稍后重试或换一个公开链接。",
+    'web.about': "使用 Keep Video 在浏览器中保存视频、音频与字幕。公开链接无需安装或注册即可使用；可用格式取决于来源。",
+    'web.support': "帮助与联系",
+    'web.supportHint': "需要帮助？查看使用指南，或通过邮件联系我们。",
+    'web.guides': "使用指南",
+    'web.formatHint': "选择来源提供的格式，然后开始下载。",
+    'web.parse.unsupported-url': "暂不支持该网站或链接类型。",
+    'web.parse.invalid-url': "请输入有效的公开链接。",
+    'web.parse.runtime-unavailable': "下载服务暂不可用，请稍后重试。",
+    'web.parse.format-unavailable': "未找到可下载的格式，请尝试其他公开链接。",
+    'web.parse.page-reload': "来源网站未能返回视频信息，请稍后重试。",
+    'web.parse.challenge-failed': "来源网站要求验证，此链接暂时无法在线使用。",
+    'web.parse.authentication': "此内容需要登录。请使用公开链接，或在桌面版配置自己的登录状态。",
+    'web.parse.access-denied': "来源网站拒绝访问，请稍后重试或尝试其他链接。",
+    'web.parse.network': "连接来源网站失败或超时，请重试。",
+    'web.parse.not-found': "视频不可用，可能已被删除或受到地区限制。",
+    'web.parse.rate-limit': "来源网站限制了请求频率，请稍后重试。",
+    'web.parse.unknown': "暂时无法解析此链接，请重试或尝试其他公开链接。",
     'web.home': '返回首页',
     'web.language': 'English',
     'web.save': '保存到设备',
@@ -350,6 +376,31 @@ const messages: Record<Locale, Record<string, string>> = {
     'err.depMissing': '未找到可用的 {kind}，请在「设置 → 运行依赖」中下载后重试',
   },
   'en-US': {
+    'web.inputLabel': "Video link",
+    'web.example': "Try an example",
+    'web.exampleHint': "An X / Twitter video is ready. Parse it, or paste your own link.",
+    'web.inputHint': "Use a public video page or media link that does not require sign-in.",
+    'web.parse': "Parse link",
+    'web.connectFailed': "Cannot connect to the online service. Please try again shortly.",
+    'web.disconnected': "Connection lost. Refresh the page and try again.",
+    'web.requestFailed': "The request could not be completed. Try again later or use another public link.",
+    'web.about': "Keep Video lets you save video, audio and subtitles in your browser. Use public links without installing an app or creating an account. Available formats depend on the source.",
+    'web.support': "Help and contact",
+    'web.supportHint': "Need a hand? Read the guides or contact us by email.",
+    'web.guides': "Read the guides",
+    'web.formatHint': "Choose a format from the source, then start the download.",
+    'web.parse.unsupported-url': "This site or link type is not supported.",
+    'web.parse.invalid-url': "Please enter a valid public link.",
+    'web.parse.runtime-unavailable': "The download service is temporarily unavailable. Please try again later.",
+    'web.parse.format-unavailable': "No downloadable formats were found. Try another public link.",
+    'web.parse.page-reload': "The source did not return video information. Please try again later.",
+    'web.parse.challenge-failed': "The source requires verification. This link is currently unavailable online.",
+    'web.parse.authentication': "This content requires sign-in. Use a public link, or configure your own login in the desktop app.",
+    'web.parse.access-denied': "The source refused access. Try again later or use another link.",
+    'web.parse.network': "The source connection failed or timed out. Please try again.",
+    'web.parse.not-found': "The video is unavailable, removed or region-restricted.",
+    'web.parse.rate-limit': "The source is receiving too many requests. Please try again later.",
+    'web.parse.unknown': "This link could not be parsed. Retry or try another public link.",
     'web.home': 'Home',
     'web.language': '中文',
     'web.save': 'Save to device',
@@ -663,7 +714,7 @@ const messages: Record<Locale, Record<string, string>> = {
 }
 
 /** 供 lint:i18n 与测试使用的只读词条表 */
-export function allMessages(): Record<Locale, Record<string, string>> {
+export function allMessages() {
   return messages
 }
 
@@ -696,12 +747,12 @@ export function setLocale(next: Locale): void {
 /**
  * 取词条。
  *
- * 缺失时**回退到中文再回退到键名**：宁可显示中文也不能显示 `queue.title`
+ * 缺失时先回退英文，再回退中文与键名，避免显示 `queue.title`
  * 这种原始键名——后者会让用户以为界面坏了。
  */
 export function t(key: string, params?: Record<string, string | number | undefined>): string {
   const table = messages[currentLocale.value] || {}
-  let text = table[key] ?? messages['zh-CN'][key] ?? key
+  let text = table[key] ?? messages['en-US'][key] ?? messages['zh-CN'][key] ?? key
   if (params) {
     for (const [name, value] of Object.entries(params)) {
       // undefined 渲染成空串而不是字面量 "undefined"——版本号缺失时
@@ -721,4 +772,9 @@ export function t(key: string, params?: Record<string, string | number | undefin
 export function resolveLocale(setting: string | undefined): Locale {
   if (setting === 'zh-CN' || setting === 'en-US') return setting
   return detectSystemLocale()
+}
+
+/** 浏览器构建注册额外七种语言，桌面构建无需携带这些词条。 */
+export function registerWebMessages(tables: Partial<Record<Locale, Record<string, string>>>): void {
+  Object.assign(messages, tables)
 }

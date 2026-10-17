@@ -1,14 +1,14 @@
 <template>
-  <div class="relative flex w-full flex-col h-screen bg-surface">
+  <div class="relative flex w-full flex-col bg-surface" :class="isWeb ? 'web-tool' : 'h-screen'">
     <!-- Header -->
     <Header :current-tab="currentTab" @change-tab="changeTab" />
     
     <!-- Main Content -->
-    <main class="flex-1 flex overflow-hidden">
+    <component :is="isWeb ? 'div' : 'main'" class="flex-1 flex overflow-hidden" :class="{ 'tool-content': isWeb }">
       <DownloadView v-show="currentTab === 'download'" />
       <HistoryView v-show="currentTab === 'history'" />
       <AboutView v-show="currentTab === 'about'" />
-    </main>
+    </component>
 
     <!-- Global Error Modal -->
     <ErrorModal

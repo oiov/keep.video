@@ -1,10 +1,10 @@
 <template>
-  <div class="flex-1 flex overflow-hidden">
+  <div class="flex-1 flex overflow-hidden" :class="{ 'tool-workspace': isWeb }">
     <!-- Left Panel -->
-    <section class="w-[65%] flex flex-col bg-surface relative">
-      <div class="flex-1 overflow-y-auto px-8 py-6">
+    <section class="w-[65%] flex flex-col bg-surface relative" :class="{ 'tool-input-panel': isWeb }">
+      <div class="flex-1 overflow-y-auto px-8 py-6" :class="{ 'tool-input-inner': isWeb }">
         <div class="max-w-xl mx-auto w-full flex flex-col gap-6">
-          <div class="flex flex-col gap-1">
+          <div v-if="!isWeb" class="flex flex-col gap-1">
             <h1 class="font-headline text-2xl font-bold leading-tight text-on-surface">{{ t('download.title') }}</h1>
             <p class="text-on-surface-variant text-sm">{{ isWeb ? t('web.subtitle') : t('download.subtitle') }}</p>
           </div>
@@ -183,7 +183,7 @@ async function parseVideo() {
     // 主进程可能在错误后附带 Cookie 读取失败的解决建议，分类时只看错误本身
     const [rawError, hint = ''] = (e.message || t('download.unknownError')).split('\n\n提示：')
     // 缺少运行依赖时直接弹「一键下载」引导，比只弹错误框更有用
-    if (rawError.includes('[deps-missing:') || /未找到可用的 (yt-dlp|ffmpeg|ffprobe)/.test(rawError)) {
+    if (!isWeb && (rawError.includes('[deps-missing:') || /未找到可用的 (yt-dlp|ffmpeg|ffprobe)/.test(rawError))) {
       useDepsStore().promptForMissing(readMissingKinds(rawError))
       store.isParsing = false
       return
@@ -192,7 +192,8 @@ async function parseVideo() {
     const kind = classifyParseError(sanitized)
       // 把类别一并传给弹窗：它据此决定是否给「提交 Issue」入口
       // （authentication / invalid-url 这类不给，否则会生成空 Issue）
-      showError(t('download.parseFailed', { message: PARSE_MESSAGES[kind] }), parseDiagnostic(sanitized), hint, kind)
+      if (isWeb) showError(t(['web', 'parse', kind].join('.')))
+      else showError(t('download.parseFailed', { message: PARSE_MESSAGES[kind] }), parseDiagnostic(sanitized), hint, kind)
   } finally {
     store.isParsing = false
   }

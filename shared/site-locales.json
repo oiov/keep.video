@@ -1,0 +1,11 @@
+[
+  { "code": "en", "appLocale": "en-US", "prefix": "", "name": "English", "og": "en_US" },
+  { "code": "zh-CN", "appLocale": "zh-CN", "prefix": "zh", "name": "简体中文", "og": "zh_CN" },
+  { "code": "es", "appLocale": "es", "prefix": "es", "name": "Español", "og": "es_ES" },
+  { "code": "pt-BR", "appLocale": "pt-BR", "prefix": "pt-br", "name": "Português (Brasil)", "og": "pt_BR" },
+  { "code": "de", "appLocale": "de", "prefix": "de", "name": "Deutsch", "og": "de_DE" },
+  { "code": "fr", "appLocale": "fr", "prefix": "fr", "name": "Français", "og": "fr_FR" },
+  { "code": "ja", "appLocale": "ja", "prefix": "ja", "name": "日本語", "og": "ja_JP" },
+  { "code": "ko", "appLocale": "ko", "prefix": "ko", "name": "한국어", "og": "ko_KR" },
+  { "code": "ru", "appLocale": "ru", "prefix": "ru", "name": "Русский", "og": "ru_RU" }
+]

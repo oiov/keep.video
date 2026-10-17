@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { t, setLocale, resolveLocale, detectSystemLocale, allMessages } from '../src/i18n'
 import { translateMainMessage } from '../src/i18n/main-messages'
+import { webLocale, isWebPage } from '../shared/web-routes'
 
 /**
  * 界面国际化核心。
@@ -50,6 +51,14 @@ describe('t()', () => {
 })
 
 describe('语言解析', () => {
+  it('在线地址决定语言，默认英文，不依赖桌面设置或系统语言', () => {
+    expect(webLocale('/app/')?.appLocale).toBe('en-US')
+    expect(webLocale('/zh/app/')?.appLocale).toBe('zh-CN')
+    expect(webLocale('/pt-br/app/')?.appLocale).toBe('pt-BR')
+    expect(isWebPage('/ja/app/')).toBe(true)
+    expect(isWebPage('/unknown/app/')).toBe(false)
+    expect(isWebPage('/app/assets/main.js')).toBe(false)
+  })
   it('明确的 locale 直接采用', () => {
     expect(resolveLocale('zh-CN')).toBe('zh-CN')
     expect(resolveLocale('en-US')).toBe('en-US')

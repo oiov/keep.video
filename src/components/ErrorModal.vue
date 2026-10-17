@@ -3,7 +3,7 @@
     <Transition name="modal">
       <div
         v-if="visible"
-        class="fixed inset-0 z-50 flex items-center justify-center p-4"
+        class="fixed inset-0 z-[100] flex items-center justify-center p-4"
         @click.self="close"
       >
         <div class="absolute inset-0 bg-black/40 backdrop-blur-xs" @click="close" />
@@ -80,7 +80,7 @@
                    用户自己就能解决的（配 Cookie / 换链接 / 等限流）不给，
                    否则会生成一堆只有模板、没有信息的空 Issue（见 #58 #59）。 -->
               <button
-                v-if="type === 'error' && offerIssue"
+                v-if="!isWeb && type === 'error' && offerIssue"
                 class="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium text-primary hover:bg-primary-container/20 transition-colors"
                 @click="openIssue"
               >
@@ -107,6 +107,7 @@ import { ref, computed } from 'vue'
 import { newIssueUrl } from '../../shared/app'
 import { safeIssueReport, shouldOfferIssue, classifyParseError, type ParseErrorKind } from '../../shared/parse-error'
 import { t } from '../i18n'
+import { isWeb } from '../runtime-mode'
 
 const props = defineProps<{
   visible: boolean

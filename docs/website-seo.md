@@ -2,13 +2,14 @@
 
 ## 产品与页面
 
-网站品牌为 Keep Video，正式域名 keep.video。网站承接搜索访问，引导进入桌面下载流程。不是在线解析工具。客户端已统一为 Keep Video 品牌，下载与更新统一使用 oiov/download 仓库。
+网站品牌为 Keep Video，正式域名 keep.video。网站承接搜索访问，主要引导进入在线工具，也提供桌面应用。门户与在线工具部署在同一站点，使用统一导航和九种语言。
 
-首页、下载中心、指南目录，以及首次使用、音频、字幕、故障排查四篇指南，各有完整中英文版本，共 24 页。页面各自覆盖独立意图；尚无关键词搜索量或难度数据，不将候选词称为已验证机会。
+首页、在线工具、下载中心、指南目录、四篇使用指南和五个平台页面，各有九种语言，共 117 页。页面各自覆盖独立意图；尚无关键词搜索量或难度数据，不将候选词称为已验证机会。
 
 | 页面 | 搜索意图 |
 | --- | --- |
-| / | Keep Video、桌面视频下载器 |
+| / | Keep Video、在线与桌面视频下载工具 |
+| /app/ | 在线解析、格式选择与保存文件 |
 | /download/ | macOS / Windows / Linux 安装包 |
 | /guides/getting-started/ | 首次安装与运行依赖 |
 | /guides/audio/ | 从视频保存 MP3 音频 |
@@ -42,7 +43,7 @@
 
 不含正式域名的构建输出 noindex、空 sitemap，不输出虚构 canonical。配置 SITE_URL 后正式构建生成相互对应的语言标注及完整 sitemap；Vercel preview 或 SITE_PREVIEW=1 保持 noindex。站点有真正的 404，不用首页兜底未知路径。
 
-pnpm lint:website 已复用原有三个平台 CI 的入口，检查 24 页独立标题与描述、资源和链接、JSON-LD、语言回链、分享图尺寸、生产/预览模式及非法域名。浏览器验证覆盖桌面、390px 和 320px；页面在无 JavaScript 时可导航。
+pnpm lint:website 已复用原有三个平台 CI 的入口，检查 117 页独立标题与描述、资源和链接、JSON-LD、语言回链、分享图尺寸、生产/预览模式及非法域名。浏览器验证覆盖桌面、390px 和 320px；页面在无 JavaScript 时可导航。
 
 上线时配置正式域名，核对实际安装包状态，提交 sitemap 到 Search Console，并检查中文首页、英文页与指南的实时抓取。后续依据曝光、点击和下载转化迭代。
 
@@ -53,13 +54,19 @@ pnpm lint:website 已复用原有三个平台 CI 的入口，检查 24 页独立
 
 ## keep.video SEO / GEO
 
-正式站点共 24 页：原有 14 页，加五个平台各中英文一页。Instagram 页面覆盖 Instagram video download 和 Reels 的实际桌面流程；其余页面分别解释 YouTube 运行时、Bilibili 分 P 与登录画质、TikTok 短链与可见性、Vimeo 隐私与作者下载选项。支持来自 yt-dlp 提取器，未声称每条 URL 均经过实测。
+正式站点共 117 页，覆盖九种语言。Instagram 页面覆盖 Instagram video download 和 Reels 的实际桌面流程；其余页面分别解释 YouTube 运行时、Bilibili 分 P 与登录画质、TikTok 短链与可见性、Vimeo 隐私与作者下载选项。支持来自 yt-dlp 提取器，未声称每条 URL 均经过实测。
 
-sitemap.xml 与 robots.txt 由构建生成；双语 canonical、hreflang 和 x-default 相互对应。HTML 包含完整正文、Organization / WebSite / SoftwareApplication / Article / BreadcrumbList 数据，支持邮箱 support@keep.video。llms.txt 提供产品事实、边界与官方内容链接，仅是辅助发现文件。
+sitemap.xml 与 robots.txt 由构建生成；九语言 canonical、hreflang 和 x-default 相互对应。HTML 包含完整正文、Organization / WebSite / SoftwareApplication / Article / BreadcrumbList 数据，支持邮箱 support@keep.video。llms.txt 提供产品事实、边界与官方内容链接，仅是辅助发现文件。
 
 页面通过清晰定义、独立回答段落、可见更新时间和 yt-dlp 官方来源链接便于 AI 引用。没有伪造评价、性能数据、第三方背书或 AI 推荐证据。搜索与 AI 引用效果需要上线后的 Search Console / Bing Webmaster 与实际问答引用监测；目前不声称已经获得排名或收录。
 
 
 ## 九语言版本
 
-英语为根目录默认语言，中文 /zh-cn/，新增 es、pt-br、de、fr、ja、ko、ru；共 108 页。每页有九个语言对应地址，x-default 为英语。旧 /en/ 通过 301 跳转，避免重复索引。语言菜单支持键盘和无 JavaScript 操作。翻译以公开文案的机器初稿为基础，经过模型复核并重写主要营销文案与关键平台描述，尚未经母语人工审校。
+英语为根目录默认语言，中文 /zh/，新增 es、pt-br、de、fr、ja、ko、ru；共 117 页。每页有九个语言对应地址，x-default 为英语。旧 /en/ 通过 301 跳转，避免重复索引。语言菜单支持键盘和无 JavaScript 操作。翻译以公开文案的机器初稿为基础，经过模型复核并重写主要营销文案与关键平台描述，尚未经母语人工审校。
+
+## 公开在线工具
+
+/app/ 默认英文，/zh/app/ 为中文。语言选择由 URL 决定，不受系统语言或桌面设置覆盖；切换语言保持当前页面类型。旧 /zh-cn/… 使用永久重定向迁移到 /zh/…。导航、canonical、hreflang 与 sitemap 使用 shared/site-locales.json 的同一份配置。
+
+/app/ 的标题、说明、三步流程、FAQ 和 WebApplication / FAQPage 数据直接生成在 HTML 中。用户与机器人收到相同内容；交互表单由 Vue 加载。文件有效期、来源限制、无需账户等说明必须与实际服务一致，不承诺支持每个链接。任务与文件接口 /api/ 保持 noindex/no-store 和会话隔离。

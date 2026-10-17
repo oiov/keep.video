@@ -4,7 +4,7 @@
       <!-- Header -->
       <div class="flex items-center justify-between">
         <div>
-          <h1 class="font-headline text-2xl font-bold leading-tight text-on-surface">{{ t('history.title') }}</h1>
+          <component :is="isWeb ? 'h2' : 'h1'" class="font-headline text-2xl font-bold leading-tight text-on-surface">{{ t('history.title') }}</component>
           <p class="text-on-surface-variant text-sm mt-1">{{ isWeb ? t('web.tasks') : t('history.subtitle') }}</p>
         </div>
         <button 
@@ -106,7 +106,7 @@
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue'
 import MaterialIcon from './icons/MaterialIcon.vue'
-import { t } from '../i18n'
+import { t, locale } from '../i18n'
 import { isWeb } from '../runtime-mode'
 import type { HistoryRecord } from '../types'
 
@@ -118,7 +118,7 @@ let requestVersion = 0
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
-  return date.toLocaleDateString('zh-CN', {
+  return date.toLocaleDateString(locale.value, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',

@@ -1,3 +1,5 @@
+import { t } from '../../src/i18n'
+
 /**
  * Web 环境的 window.electronAPI 适配器。
  *
@@ -26,7 +28,7 @@ export function installWebBridge() {
       const ws = new WebSocket(url)
       const failTimer = setTimeout(() => {
         ws.close()
-        reject(new Error('无法连接 Keep Video WebUI 服务'))
+        reject(new Error(t('web.connectFailed')))
       }, 10_000)
       ws.onopen = () => {
         clearTimeout(failTimer)
@@ -37,12 +39,12 @@ export function installWebBridge() {
       ws.onerror = () => {
         clearTimeout(failTimer)
         connecting = null
-        reject(new Error('无法连接 Keep Video WebUI 服务'))
+        reject(new Error(t('web.connectFailed')))
       }
       ws.onclose = () => {
         socket = null
         connecting = null
-        for (const [, entry] of pending) entry.reject(new Error('连接已断开'))
+        for (const [, entry] of pending) entry.reject(new Error(t('web.disconnected')))
         pending.clear()
       }
       ws.onmessage = (ev) => {
@@ -50,14 +52,14 @@ export function installWebBridge() {
         try { message = JSON.parse(String(ev.data)) } catch { return }
         if (message.event !== undefined) {
           const set = subscribers.get(message.event)
-          if (set) for (const cb of set) cb(message.data)
+          if (set) for (const cb of set) cb(message.data?.error ? { ...message.data, error: t('web.requestFailed') } : message.data)
           return
         }
         if (message.id !== undefined) {
           const entry = pending.get(message.id)
           if (!entry) return
           pending.delete(message.id)
-          if (message.error) entry.reject(new Error(message.error))
+          if (message.error) entry.reject(new Error(t('web.requestFailed')))
           else entry.resolve(message.result)
         }
       }
@@ -119,7 +121,14 @@ export function installWebBridge() {
 
     ytdlp: {
       accelerationStatus: (manual?: string) => invoke('ytdlp:accelerationStatus', manual),
-      parse: (url: string, cookiesFile?: string, proxy?: string) => invoke('ytdlp:parse', url, cookiesFile, proxy),
+      parse: async (url: string, cookiesFile?: string, proxy?: string) => {
+        const info: any = await invoke('ytdlp:parse', url, cookiesFile, proxy)
+        // 引擎的展示标签固定为中文；网页按当前语言展示，来源标题保持原样。
+        for (const format of info.formats || []) if (format.quality === '最佳画质') format.quality = t('settings.qualityBest')
+        for (const format of info.audioFormats || []) if (format.quality === '音频') format.quality = t('formats.audioHeader', { count: 1 })
+        if (info.parseNotice) info.parseNotice = ''
+        return info
+      },
       download: (options: any) => invoke('ytdlp:download', options),
       pauseDownload: (taskId: string) => invoke('ytdlp:pauseDownload', taskId),
     },

@@ -5,7 +5,7 @@ import path from 'node:path'
 /**
  * WebUI 构建配置（仅 Docker/Web 专用，完全隔离在 docker/ 目录下）。
  *
- * 输入：docker/web/index.html -> docker/web/entry.ts -> src/main.ts
+ * 输入：docker/web/entry.ts -> src/main.ts；HTML 由官网生成器统一渲染。
  * 输出：docker/dist-web/
  *
  * 完全不触碰根目录的 vite.config.ts 与 electron 构建链路。
@@ -24,6 +24,10 @@ export default defineConfig({
   build: {
     outDir: path.resolve(ROOT, 'docker/dist-web'),
     emptyOutDir: true,
+    rollupOptions: {
+      input: path.resolve(import.meta.dirname, 'entry.ts'),
+      output: { entryFileNames: 'entry.js' },
+    },
   },
   plugins: [
     vue(),

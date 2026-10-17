@@ -2,7 +2,9 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import './style.css'
 import App from './App.vue'
-import { setLocale, resolveLocale } from './i18n'
+import { isWeb } from './runtime-mode'
+import { webLocale } from '../shared/web-routes'
+import { setLocale, resolveLocale, type Locale } from './i18n'
 import { readSettings, updateSettings } from './stores/settings'
 
 // 语言必须在挂载前定好：晚一步会让首帧显示另一种语言，用户看到一次闪烁。
@@ -10,9 +12,9 @@ import { readSettings, updateSettings } from './stores/settings'
 // 「跟随系统（简体中文）」而不是一个空的选中项。
 {
   const saved = readSettings()
-  const resolved = resolveLocale(saved.language)
+  const resolved = isWeb ? (webLocale(location.pathname)?.appLocale || 'en-US') as Locale : resolveLocale(saved.language)
   setLocale(resolved)
-  if (saved.language !== 'auto') updateSettings({ language: saved.language })
+  if (!isWeb && saved.language !== 'auto') updateSettings({ language: saved.language })
 }
 
 // 全局错误处理

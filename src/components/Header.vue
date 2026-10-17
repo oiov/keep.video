@@ -1,12 +1,12 @@
 <template>
   <header
     class="flex items-center justify-between whitespace-nowrap bg-surface-container-low select-none"
-    :class="isMac ? 'pl-[78px] pr-6 py-3' : 'px-6 py-3'"
+    :class="isWeb ? 'tool-header' : isMac ? 'pl-[78px] pr-6 py-3' : 'px-6 py-3'"
     style="-webkit-app-region: drag"
   >
     <!-- Logo：所有平台都显示。macOS 上靠 header 的 pl-[78px] 让出原生红绿灯按钮的位置
          （按钮占 x=16~68，78px 留 10px 余量），不要在这里用 v-if 隐藏，否则会空出一块。 -->
-    <div class="flex items-center gap-3 text-on-surface shrink-0" style="-webkit-app-region: no-drag">
+    <div v-if="!isWeb" class="flex items-center gap-3 text-on-surface shrink-0" style="-webkit-app-region: no-drag">
       <div class="size-6 rounded-md overflow-hidden bg-primary/10 flex items-center justify-center shrink-0">
         <img src="@/assets/logo.png" alt="Keep Video" class="w-full h-full object-contain" />
       </div>
@@ -14,15 +14,14 @@
     </div>
     
     <!-- Navigation -->
-    <a v-if="isWeb" href="/" class="ml-3 text-sm text-primary">{{ t('web.home') }}</a>
-    <button v-if="isWeb" class="ml-3 text-sm text-primary" @click="setLocale(locale === 'en-US' ? 'zh-CN' : 'en-US')">{{ t('web.language') }}</button>
     <div class="flex flex-1 justify-end gap-6" style="-webkit-app-region: no-drag">
-      <nav class="flex items-center gap-6">
-        <div 
+      <nav class="flex items-center gap-6" :aria-label="t('web.tasks')">
+        <button
           v-for="tab in tabs" 
           :key="tab.key"
           class="relative flex items-center h-full cursor-pointer"
           @click="$emit('change-tab', tab.key)"
+          :aria-pressed="currentTab === tab.key"
         >
           <span 
             class="font-headline text-sm leading-normal transition-colors"
@@ -34,7 +33,7 @@
             v-if="currentTab === tab.key"
             class="absolute -bottom-3 left-0 w-full h-0.5 bg-primary rounded-t-full"
           />
-        </div>
+        </button>
       </nav>
       
       <!-- Settings Button -->
@@ -74,7 +73,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
 import MaterialIcon from './icons/MaterialIcon.vue'
-import { t, locale, setLocale } from '../i18n'
+import { t } from '../i18n'
 import { isWeb } from '../runtime-mode'
 import type { TabType } from '../types'
 

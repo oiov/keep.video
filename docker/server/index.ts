@@ -1,5 +1,6 @@
 import http from 'node:http'
 import fs from 'node:fs'
+import { isWebPage } from '../../shared/web-routes'
 import path from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
@@ -52,7 +53,7 @@ const server = http.createServer(async (req, res) => {
       }
       res.writeHead(404).end(); return
     }
-    if (url.pathname === '/app/' && !session(req)) {
+    if (isWebPage(url.pathname) && !session(req)) {
       if (sessions.size > 10000) { res.writeHead(503).end(); return }
       const token = randomBytes(32).toString('hex')
       sessions.set(token, Date.now() + 30 * 86400000); saveSessions()

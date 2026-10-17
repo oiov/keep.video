@@ -80,6 +80,18 @@ if (!zh || !en) {
   process.exit(1)
 }
 
+// 在线端额外七种语言与英文完整对齐，防止解析结果或错误状态遗漏翻译。
+const web = JSON.parse(fs.readFileSync(path.join(ROOT, 'src/i18n/web-locales.json'), 'utf8'))
+const siteLocales = JSON.parse(fs.readFileSync(path.join(ROOT, 'shared/site-locales.json'), 'utf8'))
+for (const { appLocale } of siteLocales.slice(2)) {
+  const table = web[appLocale] || {}
+  for (const [key, value] of en) {
+    if (!table[key]) problems.push(`${appLocale} 缺少词条：${key}`)
+    else if (JSON.stringify([...value.matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort()) !== JSON.stringify([...table[key].matchAll(/\{(\w+)\}/g)].map(m => m[1]).sort())) problems.push(`${appLocale} ${key} 占位符不一致`)
+  }
+  for (const key of Object.keys(table)) if (!en.has(key)) problems.push(`${appLocale} 存在未知词条：${key}`)
+}
+
 // ===== 1. 两份词条键完全一致 =====
 for (const key of zh.keys()) {
   if (!en.has(key)) problems.push(`en-US 缺少词条：${key}（该处英文界面会回退成中文）`)

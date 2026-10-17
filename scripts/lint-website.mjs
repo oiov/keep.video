@@ -11,8 +11,8 @@ const files=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirecto
 try {
  build({SITE_URL:'https://seo-check.test'})
  const pages=files(out).filter(f=>f.endsWith('index.html'))
- assert.equal(pages.length,108)
- for(const platform of ['youtube','bilibili','tiktok','instagram','vimeo']) for(const prefix of ['', 'zh-cn/', 'es/', 'pt-br/', 'de/', 'fr/', 'ja/', 'ko/', 'ru/']) {
+ assert.equal(pages.length,117)
+ for(const platform of ['youtube','bilibili','tiktok','instagram','vimeo']) for(const prefix of ['', 'zh/', 'es/', 'pt-br/', 'de/', 'fr/', 'ja/', 'ko/', 'ru/']) {
   const html=fs.readFileSync(path.join(out,prefix+platform+'-video-downloader/index.html'),'utf8')
   assert(html.includes('support@keep.video'))
   assert(html.includes('yt-dlp supported sites'))
@@ -31,17 +31,23 @@ try {
   const description=html.match(/name="description" content="([^"]+)"/)?.[1]
   assert(title&&!titles.has(title),'重复或缺失 title'); titles.add(title)
   assert(description&&!descriptions.has(description),'重复或缺失 description');descriptions.add(description)
-  const prefixes={'zh-cn':'zh-CN','es':'es','pt-br':'pt-BR','de':'de','fr':'fr','ja':'ja','ko':'ko','ru':'ru'}
-  assert(html.includes('<html lang="'+(prefixes[route.split('/')[1]]||'en')+'">'))
+  const prefixes={'zh':'zh-CN','es':'es','pt-br':'pt-BR','de':'de','fr':'fr','ja':'ja','ko':'ko','ru':'ru'}
+  assert(html.includes('<html lang="'+(prefixes[route.split('/')[1]]||'en')+'"'))
   assert.equal((html.match(/<link rel="alternate"/g)||[]).length,10)
   assert.equal((html.match(/class="language-options"/g)||[]).length,1)
   assert(!html.includes('downvid-coral')&&!html.includes('raw.githubusercontent.com'))
   for(const m of html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)) JSON.parse(m[1])
-  assert(!/<script[^>]+src=/.test(html),'不应引入执行脚本')
+  if(route.endsWith('/app/')) {
+   assert.equal((html.match(/<script[^>]+src=/g)||[]).length,1)
+   assert(html.includes('src="/app/entry.js"'))
+   assert(html.includes('"@type":"WebApplication"') && html.includes('"@type":"FAQPage"'))
+   assert(html.includes('class="online-steps"') && html.includes('<noscript>'))
+   assert(!html.includes('"@type":"Article"'))
+  } else assert(!/<script[^>]+src=/.test(html),'门户不应引入执行脚本')
   for(const m of html.matchAll(/(?:href|src)="([^"#]+)(?:#[^"]*)?"/g)){
    const href=m[1]
    if(!href.startsWith('/'))continue
-   if(href === '/app/')continue
+   if(href === '/app/entry.js')continue
    const target=path.join(out,href.endsWith('/')?href+'index.html':href)
    assert(fs.existsSync(target),'损坏的内链/资源：'+href)
   }
@@ -51,7 +57,7 @@ try {
   }
  }
  const sitemap=fs.readFileSync(path.join(out,'sitemap.xml'),'utf8')
- assert.equal((sitemap.match(/<loc>/g)||[]).length,108)
+ assert.equal((sitemap.match(/<loc>/g)||[]).length,117)
  assert(fs.readFileSync(path.join(out,'robots.txt'),'utf8').includes('Sitemap: https://seo-check.test/sitemap.xml'))
  const social=fs.readFileSync(path.join(out,'assets/social.png'))
  assert.equal(social.readUInt32BE(16),1200);assert.equal(social.readUInt32BE(20),630)
@@ -67,5 +73,5 @@ try {
  assert(!preview.includes('hreflang="x-default"'))
  assert(!fs.readFileSync(path.join(out,'sitemap.xml'),'utf8').includes('<loc>'))
  for(const invalid of ['http://site.test','https://site.test/path','https://site.test?key=a','https://user:password@site.test','https://example.com'])assert.throws(()=>build({SITE_URL:invalid}))
- console.log('官网校验通过：108 个九语言页面、独立元数据、语言回链、JSON-LD、资源、生产/预览模式与域名校验。')
+ console.log('官网校验通过：117 个九语言页面、独立元数据、语言回链、JSON-LD、资源、生产/预览模式与域名校验。')
 } finally {execFileSync(process.execPath,['scripts/build-website.mjs'],{cwd:root,stdio:'pipe'})}

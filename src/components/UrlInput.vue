@@ -1,11 +1,14 @@
 <template>
-  <div class="flex flex-col gap-3">
+  <div class="flex flex-col gap-3" :class="{ 'web-url-input': isWeb }">
+    <div v-if="isWeb" class="url-label-row"><label for="video-url">{{ t('web.inputLabel') }}</label><button type="button" @click="useExample">{{ t('web.example') }}</button></div>
     <div class="relative">
       <textarea
         ref="urlInput"
+        id="video-url"
+        :spellcheck="false"
         :value="store.url"
         @input="store.url = ($event.target as HTMLTextAreaElement).value"
-        aria-label="Paste video URL here"
+        :aria-label="t('web.inputLabel')"
         class="w-full h-24 bg-surface-container-highest rounded-md p-3 text-on-surface placeholder:text-outline-variant resize-none font-body text-sm border-2 border-transparent focus:border-primary focus:outline-hidden transition-all"
         :placeholder="t('url.placeholder')"
         @contextmenu.prevent="showContextMenu"
@@ -27,7 +30,8 @@
         </button>
       </div>
     </div>
-    <div class="flex gap-3">
+    <p v-if="isWeb" class="url-hint">{{ store.url === EXAMPLE_URL ? t('web.exampleHint') : t('web.inputHint') }}</p>
+    <div class="flex gap-3" :class="{ 'url-actions': isWeb }">
       <button
         class="flex-1 flex items-center justify-center gap-2 rounded-md h-10 bg-surface-container-highest text-on-surface font-headline font-semibold text-sm hover:bg-surface-variant transition-colors border border-outline-variant/10"
         @click="pasteUrl"
@@ -42,12 +46,12 @@
       >
         <MaterialIcon v-if="store.isParsing" name="sync" :size="18" class="animate-spin" />
         <MaterialIcon v-else name="bolt" :size="18" />
-        <span>{{ store.isParsing ? t('url.parsing') : t('url.parse') }}</span>
+        <span>{{ store.isParsing ? t('url.parsing') : (isWeb ? t('web.parse') : t('url.parse')) }}</span>
       </button>
     </div>
 
     <!-- YouTube Cookie Hint -->
-    <div v-if="store.isYouTubeUrl && !store.hasParsed && !store.cookieReady" class="flex flex-col gap-2 p-4 bg-tertiary-container/30 rounded-lg border border-tertiary/20">
+    <div v-if="!isWeb && store.isYouTubeUrl && !store.hasParsed && !store.cookieReady" class="flex flex-col gap-2 p-4 bg-tertiary-container/30 rounded-lg border border-tertiary/20">
       <div class="flex items-start gap-3">
         <MaterialIcon name="info" :size="20" class="text-tertiary shrink-0 mt-0.5" />
         <div class="flex-1">
@@ -68,7 +72,7 @@
     </div>
 
     <!-- Bilibili Cookie Hint -->
-    <div v-if="store.showBilibiliCookieHint && !store.hasParsed" class="flex flex-col gap-2 p-4 bg-tertiary-container/30 rounded-lg border border-tertiary/20">
+    <div v-if="!isWeb && store.showBilibiliCookieHint && !store.hasParsed" class="flex flex-col gap-2 p-4 bg-tertiary-container/30 rounded-lg border border-tertiary/20">
       <div class="flex items-start gap-3">
         <MaterialIcon name="info" :size="20" class="text-tertiary shrink-0 mt-0.5" />
         <div class="flex-1">
@@ -88,7 +92,7 @@
     </div>
 
   </div>
-  <CookieGuide :visible="showCookieGuide" @close="showCookieGuide = false" />
+  <CookieGuide v-if="!isWeb" :visible="showCookieGuide" @close="showCookieGuide = false" />
 </template>
 
 <script setup lang="ts">
@@ -97,10 +101,18 @@ import MaterialIcon from './icons/MaterialIcon.vue'
 import CookieGuide from './CookieGuide.vue'
 import { useDownloadStore } from '../stores/download'
 import { t } from '../i18n'
+import { isWeb } from '../runtime-mode'
 /** Cookie 使用引导浮窗（不再跳转到仓库 wiki） */
 const showCookieGuide = ref(false)
 
 const store = useDownloadStore()
+// 公开示例仅填入输入框，用户点击解析前不请求视频来源。
+const EXAMPLE_URL = 'https://x.com/CaptainAmerica/status/719944021058060289'
+if (isWeb && !store.url) store.url = EXAMPLE_URL
+function useExample() {
+  store.url = EXAMPLE_URL
+  urlInput.value?.focus()
+}
 
 defineEmits<{
   parse: []

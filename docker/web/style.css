@@ -1,0 +1,73 @@
+/* 在线工具沿用门户的语义色，桌面端保留原主题。 */
+.webpage {
+  --color-surface: #fff;
+  --color-background: var(--paper);
+  --color-on-surface: var(--ink);
+  --color-on-surface-variant: var(--muted);
+  --color-surface-container-low: var(--paper);
+  --color-surface-container: var(--paper);
+  --color-surface-container-high: color-mix(in srgb, var(--paper) 75%, white);
+  --color-surface-container-highest: color-mix(in srgb, var(--paper) 65%, white);
+  --color-surface-variant: var(--line);
+  --color-outline-variant: var(--line);
+  --color-primary-fixed: var(--orange);
+  --color-primary-container: var(--orange);
+  --color-on-primary-fixed: var(--ink);
+  --color-primary: #a04422;
+  --font-headline: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-body: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+.webpage .web-tool { min-height:350px; height:auto; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+.webpage .tool-header { -webkit-app-region:no-drag!important; padding:0 28px; height:56px; flex-shrink:0; background:var(--color-surface); border-bottom:1px solid var(--line); }
+.webpage .tool-header>div { justify-content:flex-start; }
+.webpage .tool-header nav { height:56px; gap:28px; }
+.webpage .tool-header button { font-family:inherit; }
+.webpage .tool-header button>div { bottom:0; }
+.webpage .tool-header button>span { font-family:inherit; font-size:13px; }
+.webpage .tool-content { overflow:visible; min-width:0; }
+.webpage .tool-workspace { overflow:visible; align-items:stretch; min-width:0; }
+.webpage .tool-input-panel { width:62%; min-width:0; }
+.webpage .tool-input-inner { padding:28px; overflow:visible; }
+.webpage .tool-input-inner>div { max-width:none; }
+.webpage .tool-queue { width:38%; min-width:0; padding:28px 24px; box-shadow:none; z-index:auto; }
+.webpage .tool-queue>div:first-child { gap:8px; flex-wrap:wrap; }
+.webpage .tool-queue h2 { font-family:inherit; font-size:14px; font-weight:600; }
+.webpage .tool-queue p { text-align:center; line-height:1.6; }
+.webpage .tool-queue .overflow-y-auto { max-height:540px; }
+.webpage .font-headline,.webpage .font-body { font-family:inherit; }
+.webpage .url-label-row { display:flex; align-items:center; justify-content:space-between; gap:16px; font-size:13px; font-weight:600; }
+.webpage .url-label-row button { color:var(--color-primary); font-size:12px; font-weight:500; text-align:right; }
+.webpage .url-label-row button:hover { text-decoration:underline; text-underline-offset:3px; }
+.webpage .web-url-input textarea { height:108px; border:1px solid var(--line); background:var(--color-surface); padding:16px; line-height:1.65; font-size:14px; border-radius:8px; resize:vertical; min-height:80px; }
+.webpage .web-url-input textarea:focus { border-color:var(--color-primary); box-shadow:0 0 0 3px color-mix(in srgb,var(--orange) 12%,transparent); }
+.webpage .url-hint { color:var(--muted); font-size:12px; line-height:1.65; margin:0; }
+.webpage .url-actions { margin-top:8px; gap:12px; }
+.webpage .url-actions button { height:44px; font-size:13px; font-weight:600; border-radius:6px; }
+.webpage .url-actions button:first-child { flex:0 1 auto; min-width:130px; padding:0 18px; background:var(--paper); border:1px solid var(--line); }
+.webpage .url-actions button:last-child { flex:1; background:var(--orange); color:var(--ink); border:1px solid var(--orange); }
+.webpage .url-actions button:hover { filter:brightness(.97); }
+.webpage .gradient-btn-orange { background:var(--orange); color:var(--ink); box-shadow:none; font-size:14px; }
+.webpage button:focus-visible,.webpage textarea:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+@media(max-width:760px) {
+ .webpage .web-tool { min-height:0; }
+ .webpage .tool-header { padding:0 20px; height:52px; }
+ .webpage .tool-header nav { height:52px; gap:24px; }
+ .webpage .tool-workspace { flex-direction:column; }
+ .webpage .tool-input-panel,.webpage .tool-queue { width:100%; }
+ .webpage .tool-input-inner { padding:22px 20px; }
+ .webpage .tool-queue { padding:22px 20px; border-left:0; border-top:1px solid var(--line); }
+ .webpage .tool-queue .py-12 { padding:20px 0; }
+ .webpage .tool-content>.p-8 { padding:24px 20px; }
+ .webpage .url-actions button:first-child { min-width:0; padding:0 13px; }
+ .webpage .url-label-row { gap:12px; }
+}
+.webpage .gradient-btn-orange:hover { background:var(--orange); filter:brightness(.97); }
+@media(max-width:480px) {
+ .webpage .tool-input-inner .w-40 { width:100px; height:70px; }
+ .webpage .tool-input-inner .grid-cols-2 { grid-template-columns:1fr; }
+}
+@media(max-width:380px) {
+ .webpage .url-actions { flex-direction:column; }
+ .webpage .url-actions button:first-child,.webpage .url-actions button:last-child { flex:auto; width:100%; }
+ .webpage .tool-header nav { gap:18px; }
+}
