@@ -37,13 +37,16 @@ try {
   assert.equal((html.match(/class="language-options"/g)||[]).length,1)
   assert(!html.includes('downvid-coral')&&!html.includes('raw.githubusercontent.com'))
   for(const m of html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)) JSON.parse(m[1])
+  const trackingScripts = html.match(/<script[^>]+src="https:\/\/cloud\.umami\.is\/script\.js"[^>]*><\/script>/g) || []
+  assert.equal(trackingScripts.length,1,'每页必须且只能加载一次 Umami')
+  assert.equal(trackingScripts[0],'<script defer src="https://cloud.umami.is/script.js" data-website-id="b8ead086-206d-4f73-9b5e-82bf119f3591"></script>')
   if(route.endsWith('/app/')) {
-   assert.equal((html.match(/<script[^>]+src=/g)||[]).length,1)
+   assert.equal((html.match(/<script[^>]+src=/g)||[]).length,2)
    assert(html.includes('src="/app/entry.js"'))
    assert(html.includes('"@type":"WebApplication"') && html.includes('"@type":"FAQPage"'))
    assert(html.includes('class="online-steps"') && html.includes('<noscript>'))
    assert(!html.includes('"@type":"Article"'))
-  } else assert(!/<script[^>]+src=/.test(html),'门户不应引入执行脚本')
+  } else assert.equal((html.match(/<script[^>]+src=/g)||[]).length,1,'门户只应加载 Umami 统计脚本')
   for(const m of html.matchAll(/(?:href|src)="([^"#]+)(?:#[^"]*)?"/g)){
    const href=m[1]
    if(!href.startsWith('/'))continue
