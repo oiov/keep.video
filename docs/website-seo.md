@@ -54,7 +54,9 @@ pnpm lint:website 已复用原有三个平台 CI 的入口，检查 117 页独�
 
 ## keep.video SEO / GEO
 
-正式站点共 117 页，覆盖九种语言。Instagram 页面覆盖 Instagram video download 和 Reels 的实际桌面流程；其余页面分别解释 YouTube 运行时、Bilibili 分 P 与登录画质、TikTok 短链与可见性、Vimeo 隐私与作者下载选项。支持来自 yt-dlp 提取器，未声称每条 URL 均经过实测。
+正式站点共 117 页，覆盖九种语言。五个平台页的标题、搜索描述、H1 与分享元数据同时覆盖在线和桌面版。Instagram 页面覆盖视频与 Reels；其余页面分别解释 YouTube 画质与字幕、Bilibili 分 P 与登录画质、TikTok 短链与可见性、Vimeo 隐私与作者下载选项。支持来自 yt-dlp 提取器，未声称每条 URL 均经过实测。
+
+平台页与使用指南先说明在线操作，再以独立章节保留桌面版详细步骤。在线版无需本机安装运行依赖，不读取本机浏览器 Cookie；依赖安装、Cookie、输出目录等配置只属于桌面版。下载中心继续定位为桌面安装包页面。关键词自然体现在标题、描述和正文中，不使用 meta keywords 堆砌。
 
 sitemap.xml 与 robots.txt 由构建生成；九语言 canonical、hreflang 和 x-default 相互对应。HTML 包含完整正文、Organization / WebSite / SoftwareApplication / Article / BreadcrumbList 数据，支持邮箱 support@keep.video。llms.txt 提供产品事实、边界与官方内容链接，仅是辅助发现文件。
 

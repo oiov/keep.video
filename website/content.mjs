@@ -2,9 +2,9 @@
 export const guides = [
   {
     slug: 'getting-started', category: ['开始使用', 'GETTING STARTED'],
-    title: ['第一次使用 Keep Video：从安装到下载', 'Your first download with Keep Video'],
-    description: ['了解 Keep Video 桌面视频下载器的安装、运行依赖、链接解析和文件保存步骤，适用于 macOS、Windows 和 Linux。', 'Install Keep Video, prepare its runtime tools, choose a format and save your first video on macOS, Windows or Linux.'],
-    intro: ['Keep Video 在你的电脑上运行。网页提供介绍与下载入口，视频解析、文件保存和格式转换由桌面客户端完成。', 'Keep Video runs on your computer. This website provides information and download links; the desktop app handles parsing, saving and conversion.'],
+    title: ['第一次使用 Keep Video：在线与桌面下载', 'Getting started with Keep Video — online and desktop'],
+    description: ['无需安装，在线粘贴公开链接并保存视频、音频与字幕；也可配置 Keep Video 桌面版，在 macOS、Windows 或 Linux 本地下载。', 'Paste a public link to save video, audio and subtitles online without installation, or use the Keep Video desktop app on macOS, Windows or Linux.'],
+    intro: ['使用 Keep Video 在线解析公开链接并保存视频、音频与字幕，无需安装。也提供 macOS、Windows、Linux 桌面应用。支持情况取决于来源。', 'Use Keep Video in your browser to save video, audio and subtitles from public links. No installation needed. Desktop apps are also available for macOS, Windows and Linux. Source availability varies.'],
     sections: [
       [['1. 选择适合电脑的安装包', '1. Choose the right installer'], ['macOS 用户在“关于本机”确认是 Apple 芯片还是 Intel，再选 ARM64 或 x64 的 DMG。Windows 使用 x64 安装包。Linux 根据发行版选择 AppImage 或 DEB，以发布页面实际提供的文件为准。', 'On macOS, check About This Mac for Apple silicon or Intel, then choose the ARM64 or x64 DMG. Use the x64 installer on Windows. On Linux, choose a compatible AppImage or DEB from the files offered in the release.']],
       [['2. 准备运行依赖', '2. Prepare the runtime tools'], ['首次打开时，应用会检查 yt-dlp 和 FFmpeg。缺失时按提示下载安装，或到“设置 → 运行依赖”查看状态。YouTube 还可能需要 Node.js 22+ 或 Deno 2.3+，目前需要自行安装。', 'At first launch, the app checks for yt-dlp and FFmpeg. Install missing tools from the prompt or inspect them in Settings → Runtime dependencies. YouTube may also require Node.js 22+ or Deno 2.3+, installed separately.']],

@@ -8,6 +8,8 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const out=path.join(root,'website/dist')
 const build=(env={})=>execFileSync(process.execPath,['scripts/build-website.mjs'],{cwd:root,env:{...process.env,SITE_URL:'',SITE_PREVIEW:'',VERCEL_ENV:'',...env},stdio:'pipe'})
 const files=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(path.join(dir,e.name)):[path.join(dir,e.name)])
+// 每种语言独立锁定双端定位，不能只验证词条存在或从生产文案生成预期值。
+const modeWords={en:[/online/i,/desktop/i],zh:[/在线/,/桌面/],es:[/online/i,/escritorio/i],'pt-br':[/online/i,/desktop/i],de:[/online/i,/desktop/i],fr:[/en ligne/i,/ordinateur|bureau/i],ja:[/オンライン/,/デスクトップ/],ko:[/온라인/,/데스크톱/],ru:[/онлайн/i,/компьютер/i]}
 try {
  build({SITE_URL:'https://seo-check.test'})
  const pages=files(out).filter(f=>f.endsWith('index.html'))
@@ -29,6 +31,28 @@ try {
   assert.equal((html.match(/hreflang="x-default"/g)||[]).length,1)
   const title=html.match(/<title>(.*?)<\/title>/)?.[1]
   const description=html.match(/name="description" content="([^"]+)"/)?.[1]
+  const language=route.split('/')[1] in modeWords?route.split('/')[1]:'en'
+  const article=route.includes('-video-downloader/')||/\/guides\/[^/]+\/$/.test(route)
+  if(route.includes('-video-downloader/')||route.endsWith('/guides/getting-started/')) {
+   for(const word of modeWords[language]) {
+    assert(word.test(title),'标题缺少在线或桌面定位：'+route)
+    assert(word.test(description),'描述缺少在线或桌面定位：'+route)
+    assert(word.test(html.match(/<h1>(.*?)<\/h1>/)?.[1]),'H1 缺少双端定位：'+route)
+   }
+   assert.equal(html.match(/property="og:title" content="([^"]+)"/)?.[1],title)
+   assert.equal(html.match(/property="og:description" content="([^"]+)"/)?.[1],description)
+  }
+  if(article) {
+   const online=html.indexOf('<section id="online-workflow"')
+   const desktop=html.indexOf('<section id="desktop-workflow"')
+   assert(online>=0&&desktop>online,'指南必须先解释在线操作，再限定桌面步骤：'+route)
+   assert(desktop<html.indexOf('<section id="step-0"'),'本机配置必须在桌面章节内：'+route)
+   const workflow=html.slice(online,desktop)
+   const prefix=language==='en'?'':language+'/'
+   assert(workflow.includes('href="/'+prefix+'app/"'),'正文缺少当前语言在线入口：'+route)
+   for(const word of modeWords[language]) assert(word.test(workflow),'在线说明缺少模式边界：'+route)
+   assert(!html.includes('This website provides information and download links;')&&!html.includes('网页提供介绍与下载入口'),'不得恢复网站仅供介绍的旧描述')
+  }
   assert(title&&!titles.has(title),'重复或缺失 title'); titles.add(title)
   assert(description&&!descriptions.has(description),'重复或缺失 description');descriptions.add(description)
   const prefixes={'zh':'zh-CN','es':'es','pt-br':'pt-BR','de':'de','fr':'fr','ja':'ja','ko':'ko','ru':'ru'}

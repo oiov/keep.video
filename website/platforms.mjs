@@ -7,16 +7,16 @@ export const platforms = [
       "YOUTUBE GUIDE"
     ],
     "title": [
-      "YouTube 视频下载器：画质、音频与字幕",
-      "YouTube Video Downloader for Desktop"
+      "YouTube 视频下载器：在线与桌面版",
+      "YouTube Video Downloader — Online & Desktop"
     ],
     "description": [
-      "保存有权下载的 YouTube 视频、音频和字幕。了解 Keep Video 的画质选择、FFmpeg 合并与 JavaScript 运行时配置。",
-      "Download permitted YouTube videos, audio and subtitles with Keep Video. Learn about format selection, FFmpeg merging and JavaScript runtime setup."
+      "使用 Keep Video 在线保存已获授权的 YouTube 公开内容，无需安装；也可使用桌面版。了解画质、音频与字幕，可用性取决于来源。",
+      "Save permitted public YouTube content online with Keep Video, or use the desktop app. Learn about quality, audio and subtitles."
     ],
     "intro": [
-      "Keep Video 通过 yt-dlp 提供 YouTube 视频下载支持，在 macOS、Windows 和 Linux 本地运行。可以直接使用在线工具解析并保存文件，也可以安装桌面应用。",
-      "Keep Video supports YouTube video downloading through yt-dlp on macOS, Windows and Linux. Use the online tool to parse a link and save the completed file to your device. Desktop installers are also available."
+      "使用 Keep Video 在线保存已获授权的 YouTube 公开内容，无需安装；也可使用桌面版。了解画质、音频与字幕，可用性取决于来源。",
+      "Save permitted public YouTube content online with Keep Video, or use the desktop app. Learn about quality, audio and subtitles."
     ],
     "sections": [
       [
@@ -83,16 +83,16 @@ export const platforms = [
       "BILIBILI GUIDE"
     ],
     "title": [
-      "Bilibili 视频下载器：保存 B 站视频与音频",
-      "Bilibili Video Downloader for Desktop"
+      "Bilibili 视频下载器：在线与桌面版",
+      "Bilibili Video Downloader — Online & Desktop"
     ],
     "description": [
-      "使用 Keep Video 在电脑保存可访问的 Bilibili 视频与音频。了解 BV 链接、分 P 选择、登录画质和音视频合并。",
-      "Save accessible Bilibili videos and audio on your computer with Keep Video. Learn about BV links, multi-part videos, login-dependent quality and merging."
+      "使用 Keep Video 在线保存已获授权的 Bilibili 公开内容，无需安装；也可使用桌面版。了解BV 链接、分 P 与画质限制，可用性取决于来源。",
+      "Save permitted public Bilibili content online with Keep Video, or use the desktop app. Learn about BV links, video parts and quality limits."
     ],
     "intro": [
-      "Keep Video 通过 yt-dlp 提供 Bilibili 视频下载支持，在 macOS、Windows 和 Linux 本地运行。可以直接使用在线工具解析并保存文件，也可以安装桌面应用。",
-      "Keep Video supports Bilibili video downloading through yt-dlp on macOS, Windows and Linux. Use the online tool to parse a link and save the completed file to your device. Desktop installers are also available."
+      "使用 Keep Video 在线保存已获授权的 Bilibili 公开内容，无需安装；也可使用桌面版。了解BV 链接、分 P 与画质限制，可用性取决于来源。",
+      "Save permitted public Bilibili content online with Keep Video, or use the desktop app. Learn about BV links, video parts and quality limits."
     ],
     "sections": [
       [
@@ -159,16 +159,16 @@ export const platforms = [
       "TIKTOK GUIDE"
     ],
     "title": [
-      "TikTok 视频下载器：在电脑保存视频",
-      "TikTok Video Downloader for Desktop"
+      "TikTok 视频下载器：在线与桌面版",
+      "TikTok Video Downloader — Online & Desktop"
     ],
     "description": [
-      "使用 Keep Video 保存可访问且已获授权的 TikTok 视频。了解分享链接、短链解析、格式选择与下载失败排查。",
-      "Download accessible, permitted TikTok videos with Keep Video for Windows, macOS and Linux. Learn about shared links, formats and extraction troubleshooting."
+      "使用 Keep Video 在线保存已获授权的 TikTok 公开内容，无需安装；也可使用桌面版。了解分享链接、格式与可用性限制，可用性取决于来源。",
+      "Save permitted public TikTok content online with Keep Video, or use the desktop app. Learn about shared links, formats and availability limits."
     ],
     "intro": [
-      "Keep Video 通过 yt-dlp 提供 TikTok 视频下载支持，在 macOS、Windows 和 Linux 本地运行。可以直接使用在线工具解析并保存文件，也可以安装桌面应用。",
-      "Keep Video supports TikTok video downloading through yt-dlp on macOS, Windows and Linux. Use the online tool to parse a link and save the completed file to your device. Desktop installers are also available."
+      "使用 Keep Video 在线保存已获授权的 TikTok 公开内容，无需安装；也可使用桌面版。了解分享链接、格式与可用性限制，可用性取决于来源。",
+      "Save permitted public TikTok content online with Keep Video, or use the desktop app. Learn about shared links, formats and availability limits."
     ],
     "sections": [
       [
@@ -235,16 +235,16 @@ export const platforms = [
       "INSTAGRAM GUIDE"
     ],
     "title": [
-      "Instagram 视频下载器：保存视频与 Reels",
-      "Instagram Video Download — Videos & Reels on Desktop"
+      "Instagram 视频下载器：在线与桌面版",
+      "Instagram Video Downloader — Online & Desktop"
     ],
     "description": [
-      "在电脑使用 Keep Video 下载可访问的 Instagram 视频与 Reels。查看链接获取、登录要求、格式选择与常见解析问题。",
-      "Instagram video download on Windows, macOS and Linux with Keep Video. Save permitted videos and Reels; learn about URLs, login requirements and formats."
+      "使用 Keep Video 在线保存已获授权的 Instagram 公开内容，无需安装；也可使用桌面版。了解视频、Reels 与登录限制，可用性取决于来源。",
+      "Save permitted public Instagram content online with Keep Video, or use the desktop app. Learn about videos, Reels and sign-in limits."
     ],
     "intro": [
-      "Keep Video 通过 yt-dlp 提供 Instagram 视频下载支持，在 macOS、Windows 和 Linux 本地运行。可以直接使用在线工具解析并保存文件，也可以安装桌面应用。",
-      "Keep Video supports Instagram video downloading through yt-dlp on macOS, Windows and Linux. Use the online tool to parse a link and save the completed file to your device. Desktop installers are also available."
+      "使用 Keep Video 在线保存已获授权的 Instagram 公开内容，无需安装；也可使用桌面版。了解视频、Reels 与登录限制，可用性取决于来源。",
+      "Save permitted public Instagram content online with Keep Video, or use the desktop app. Learn about videos, Reels and sign-in limits."
     ],
     "sections": [
       [
@@ -311,16 +311,16 @@ export const platforms = [
       "VIMEO GUIDE"
     ],
     "title": [
-      "Vimeo 视频下载器：保存授权视频",
-      "Vimeo Video Downloader for Desktop"
+      "Vimeo 视频下载器：在线与桌面版",
+      "Vimeo Video Downloader — Online & Desktop"
     ],
     "description": [
-      "使用 Keep Video 在电脑保存已获授权的 Vimeo 视频。了解视频页面链接、来源画质、密码访问和隐私设置限制。",
-      "Save permitted Vimeo videos with Keep Video on your desktop. Learn about video page URLs, source quality, password access and privacy restrictions."
+      "使用 Keep Video 在线保存已获授权的 Vimeo 公开内容，无需安装；也可使用桌面版。了解来源画质、作者下载与隐私限制，可用性取决于来源。",
+      "Save permitted public Vimeo content online with Keep Video, or use the desktop app. Learn about source quality, creator downloads and privacy limits."
     ],
     "intro": [
-      "Keep Video 通过 yt-dlp 提供 Vimeo 视频下载支持，在 macOS、Windows 和 Linux 本地运行。可以直接使用在线工具解析并保存文件，也可以安装桌面应用。",
-      "Keep Video supports Vimeo video downloading through yt-dlp on macOS, Windows and Linux. Use the online tool to parse a link and save the completed file to your device. Desktop installers are also available."
+      "使用 Keep Video 在线保存已获授权的 Vimeo 公开内容，无需安装；也可使用桌面版。了解来源画质、作者下载与隐私限制，可用性取决于来源。",
+      "Save permitted public Vimeo content online with Keep Video, or use the desktop app. Learn about source quality, creator downloads and privacy limits."
     ],
     "sections": [
       [
