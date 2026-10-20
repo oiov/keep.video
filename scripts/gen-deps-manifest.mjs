@@ -141,15 +141,18 @@ async function resolveYtDlp(tag, { withHashes }) {
   const base = `https://github.com/${YTDLP_REPO}/releases/download/${resolvedTag}`
 
   const assets = {}
+  let zipappHash = ''
   if (withHashes) {
     const sums = parseSums(curlFetch(`${base}/SHA2-256SUMS`))
+    zipappHash = sums.get('yt-dlp') || ''
+    if (!zipappHash) throw new Error(`${resolvedTag} 的 SHA2-256SUMS 中缺少 yt-dlp zipapp`)
     for (const [platform, name] of Object.entries(YTDLP_ASSETS)) {
       const hash = sums.get(name)
       if (!hash) throw new Error(`${resolvedTag} 的 SHA2-256SUMS 中缺少 ${name}`)
       assets[platform] = { name, hash }
     }
   }
-  return { tag: resolvedTag, assets }
+  return { tag: resolvedTag, assets, zipappHash }
 }
 
 async function resolveFfmpeg(tag, { withHashes }) {
@@ -211,6 +214,9 @@ import rt "github.com/yxxbc/downvid/backend/internal/runtime"
 
 // YtDlpTag yt-dlp nightly 构建的固定 tag（日期版本号）
 const YtDlpTag = "${ytdlp.tag}"
+
+// YtDlpZipappSHA256 容器使用的 Python zipapp 校验值，与桌面独立二进制不同。
+const YtDlpZipappSHA256 = "${ytdlp.zipappHash}"
 
 // FFmpegTag ffmpeg-static 的固定 tag
 const FFmpegTag = "${ffmpeg.tag}"
@@ -300,6 +306,7 @@ async function main() {
     if (ytdlpTag === existingTags.ytdlp) {
       const resolved = await resolveYtDlp(ytdlpTag, { withHashes: true })
       const src = readFileSync(OUT_FILE, 'utf8')
+      if (!src.includes(`YtDlpZipappSHA256 = "${resolved.zipappHash}"`)) problems.push('容器 yt-dlp zipapp 哈希与上游不一致')
       for (const [platform, a] of Object.entries(resolved.assets)) {
         if (!src.includes(a.hash)) problems.push(`${platform} 的 yt-dlp 哈希与上游不一致`)
       }
@@ -331,6 +338,7 @@ async function main() {
   console.log(`  ffmpeg : ${ffmpeg.tag}`)
 
   writeFileSync(OUT_FILE, render(ytdlp, ffmpeg, { ffmpeg: readExistingFfmpegHashes() }), 'utf8')
+  execFileSync('gofmt', ['-w', OUT_FILE])
   console.log(`已写入 ${path.relative(process.cwd(), OUT_FILE)}`)
 }
 

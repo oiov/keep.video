@@ -56,6 +56,7 @@ export interface DownloadTask {
   videoInfo: VideoInfo
   selectedFormat: VideoFormat
   outputDir: string
+  filenameTemplate?: string
   status: 'pending' | 'downloading' | 'paused' | 'merging' | 'completed' | 'error'
   progress: number
   downloadedSize?: string

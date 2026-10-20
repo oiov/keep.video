@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import path from 'node:path'
 import { accelerationConnections, normalizeAcceleration } from '../shared/acceleration'
-import { aria2Candidates, isSupportedAria2Version } from '../electron/download/aria2'
+import { aria2Candidates, isSupportedAria2Version, parseAria2Version } from '../electron/download/aria2'
 import { createDirectSegments, canResumeDirect } from '../electron/download/direct-state'
 
 describe('下载加速配置', () => {
@@ -18,6 +18,13 @@ describe('下载加速配置', () => {
 })
 
 describe('aria2 探测候选', () => {
+  it('识别本地化版本，不误取发行版警告中的版本', () => {
+    expect(parseAria2Version('WARNING: library 9.9.9\naria2 version 1.37.0\n')).toBe('1.37.0')
+    expect(parseAria2Version('aria2 版本 1.36.0\r\nCopyright')).toBe('1.36.0')
+    expect(parseAria2Version('aria2 バージョン 1.37.0')).toBe('1.37.0')
+    expect(parseAria2Version('library 1.37.0')).toBe('')
+    expect(parseAria2Version('aria2 unavailable\n1.37.0')).toBe('')
+  })
   it('手动路径优先且不替换为其他安装', () => {
     expect(aria2Candidates('E:\\tools\\aria2c.exe', 'win32', {})).toEqual(['E:\\tools\\aria2c.exe'])
   })

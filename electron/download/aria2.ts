@@ -10,6 +10,11 @@ export function isSupportedAria2Version(version: string): boolean {
   return !!match && (Number(match[1]) > 1 || Number(match[1]) === 1 && Number(match[2]) >= 36)
 }
 
+/** 只从 aria2 所在行读取版本，避免发行版警告中的其他版本号误命中。 */
+export function parseAria2Version(output: string): string {
+  return /^\s*aria2\b[^\r\n]*?\b(\d+\.\d+\.\d+)\s*$/im.exec(output)?.[1] || ''
+}
+
 /** 显式使用目标平台路径语义，覆盖 GUI 旧 PATH 和搬迁后的 Scoop/WinGet。 */
 export function aria2Candidates(manual = '', platform = process.platform, env = process.env, home = os.homedir(), managed = ''): string[] {
   if (manual) return [manual]
@@ -39,8 +44,9 @@ export async function detectAria2(manual = ''): Promise<AccelerationStatus> {
     try { if (!fs.statSync(candidate).isFile()) continue } catch { continue }
     if (Date.now() >= deadline) break
     const version = await new Promise<string>(resolve => {
-      execFile(candidate, ['--version'], { windowsHide: true, timeout: Math.min(2000, deadline - Date.now()), maxBuffer: 16384 }, (error, stdout) => {
-        resolve(error ? '' : /aria2 version (\d+(?:\.\d+)+)/i.exec(stdout)?.[1] || '')
+      execFile(candidate, ['--version'], { windowsHide: true, timeout: Math.min(2000, deadline - Date.now()), maxBuffer: 16384,
+        env: { ...process.env, LC_ALL: 'C', LANG: 'C', LANGUAGE: 'C' } }, (error, stdout) => {
+        resolve(error ? '' : parseAria2Version(stdout))
       })
     })
     if (isSupportedAria2Version(version)) return { found: true, path: candidate, version, reason: '' }

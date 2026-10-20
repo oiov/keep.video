@@ -34,6 +34,21 @@ function cleanQualityLabel(raw: string): string {
   return ''
 }
 
+export function normalizeFps(fps: number): number {
+  if (!Number.isFinite(fps) || fps <= 0) return 0
+  // 只吸附浮点抖动，不用上游的 ±1 容差（会把 25fps 错归为 24fps）。
+  const common = [24, 25, 30, 48, 50, 60, 120, 144]
+  const nearest = common.reduce((best, value) => Math.abs(fps - value) < Math.abs(fps - best) ? value : best)
+  return Math.abs(fps - nearest) < 0.2 ? nearest : Math.round(fps * 100) / 100
+}
+
+function codecRank(codec: string): number {
+  if (/^(avc|h264)/i.test(codec)) return 0
+  if (/^(hev|hvc|h265)/i.test(codec)) return 1
+  if (/^(av01|av1)/i.test(codec)) return 2
+  return 3
+}
+
 export function buildVideoFormats(info: any, isYoutube: boolean, allowYoutubeManifests = false): any[] {
   const isM3u8 = (f: any) => (f.protocol || '').includes('m3u8')
   // 不要求 vcodec 字段存在：X/Twitter 等站点的 mp4 直链格式不带编解码信息（vcodec 为空）
@@ -53,7 +68,7 @@ export function buildVideoFormats(info: any, isYoutube: boolean, allowYoutubeMan
         if (bitrate > 0) filesize = Math.floor((bitrate * 1000 * info.duration) / 8)
       }
       const height = f.height || 0
-      const fps = f.fps || 0
+      const fps = normalizeFps(f.fps || 0)
       const rawLabel = cleanQualityLabel(f.quality_label || '') || cleanQualityLabel(f.format_note || '')
       const quality = rawLabel || getResolutionLabel(height, fps)
       return {
@@ -63,17 +78,18 @@ export function buildVideoFormats(info: any, isYoutube: boolean, allowYoutubeMan
         // acodec 缺失视为音视频一体（渐进式 mp4 通常如此），下载时不再额外合并音轨
         hasAudio: f.acodec == null ? true : f.acodec !== 'none',
         _tbr: f.tbr || 0,
+        _codec: codecRank(f.vcodec || ''),
       }
     })
-    .sort((a: any, b: any) => (b.height || 0) - (a.height || 0) || (b._tbr || 0) - (a._tbr || 0))
-    // 同一清晰度只保留码率最高的一个（已按码率降序）
+    .sort((a: any, b: any) => b.height - a.height || b.fps - a.fps || a._codec - b._codec || b._tbr - a._tbr)
+    // 同分辨率 / 帧率优先兼容编码，不受站点标签拼写影响。
     .filter((f: any) => {
-      const key = `${f.quality}_${f.fps || 0}`
+      const key = `${f.height}_${f.fps}`
       if (seenQuality.has(key)) return false
       seenQuality.add(key)
       return true
     })
-    .map(({ _tbr, ...rest }: any) => rest)
+    .map(({ _tbr, _codec, ...rest }: any) => rest)
 
   // 兜底：站点没有提供可识别的分辨率信息时，交给 yt-dlp 自动选择最佳格式，避免无格式可选
   if (formats.length === 0 && (info.formats?.length || info.url)) {

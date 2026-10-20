@@ -22,6 +22,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import path from 'node:path'
+import { EventEmitter } from 'node:events'
 import { createSuite } from './lib/harness.mjs'
 import { loader } from './lib/load-source.mjs'
 
@@ -45,7 +46,7 @@ function makeStubs(overrides = {}) {
     fetchCalls: [],
   }
 
-  const autoUpdater = {
+  const autoUpdater = Object.assign(new EventEmitter(), {
     autoDownload: false,
     autoInstallOnAppQuit: false,
     checkForUpdates: async () => {
@@ -54,10 +55,12 @@ function makeStubs(overrides = {}) {
       return state.checkResult
     },
     downloadUpdate: async () => { state.fetchCalls.push({ kind: 'autoUpdater.downloadUpdate' }) },
-    quitAndInstall: () => { state.fetchCalls.push({ kind: 'autoUpdater.quitAndInstall' }) },
-    on: () => {},
+    quitAndInstall: () => {
+      state.fetchCalls.push({ kind: 'autoUpdater.quitAndInstall' })
+      if (overrides.installError) autoUpdater.emit('error', new Error('模拟安装失败'))
+    },
     logger: null,
-  }
+  })
 
   const electron = {
     app: {
@@ -85,7 +88,7 @@ function makeStubs(overrides = {}) {
   return { state, autoUpdater, electron }
 }
 
-function loadUpdater(overrides = {}) {
+function loadUpdater(overrides = {}, sources = {}) {
   const { state, autoUpdater, electron } = makeStubs(overrides)
   const load = loader(
     {
@@ -99,6 +102,7 @@ function loadUpdater(overrides = {}) {
       },
       './store': { broadcast: (channel, data) => state.broadcasts.push({ channel, data }) },
       './main': { log: () => {} },
+      'electron/download/ytdlp.ts': { stopAllDownloads: overrides.stopAllDownloads || (async () => {}) },
     },
     {
       process: {
@@ -109,8 +113,9 @@ function loadUpdater(overrides = {}) {
         env: { APPIMAGE: '/tmp/KeepVideo.AppImage', ...(overrides.env || {}) },
       },
     },
+    sources,
   )
-  return { updater: load('electron/updater.ts'), state }
+  return { updater: load('electron/updater.ts'), state, autoUpdater }
 }
 
 /** 造一个「GitHub 返回某个 tag」的响应 */
@@ -281,6 +286,7 @@ suite.case('安装方式分支：便携版 / tar.gz / 开发模式必须走手�
         },
         './store': { broadcast: (ch, data) => state.broadcasts.push({ channel: ch, data }) },
         './main': { log: () => {} },
+        'electron/download/ytdlp.ts': { stopAllDownloads: async () => () => {} },
       },
       { process: { ...process, platform: c.platform, env: { ...process.env, ...c.env } } },
     )
@@ -307,6 +313,7 @@ suite.case('开发模式不做任何自动更新动作', async (t) => {
       },
       './store': { broadcast: () => {} },
       './main': { log: () => {} },
+      'electron/download/ytdlp.ts': { stopAllDownloads: async () => () => {} },
     },
   )
   const u = load('electron/updater.ts')
@@ -397,6 +404,41 @@ suite.case('应用内更新弹窗能从 Release 正文里裁出给用户看的�
   t.match(notes, /更新内容/, '生成脚本必须写出「更新内容」分节标题')
   const composable = fs.readFileSync(path.join(root, 'src/composables/useUpdater.ts'), 'utf8')
   t.match(composable, /更新内容/, 'useUpdater 必须按同一标题裁剪（改任一侧都要同步）')
+})
+
+async function installChecks(sources = {}) {
+  let resolveStop
+  const { updater, state } = loadUpdater({ stopAllDownloads: () => new Promise(resolve => { resolveStop = resolve }) }, sources)
+  const installing = updater.installUpdate()
+  const earlyCalls = state.fetchCalls.length
+  resolveStop(() => {})
+  assert.equal((await installing).success, true)
+  assert.equal(earlyCalls, 0, '下载停止之前不启动安装器')
+  assert.equal(state.fetchCalls[0]?.kind, 'autoUpdater.quitAndInstall')
+  const failed = loadUpdater({ stopAllDownloads: async () => { throw new Error('停止失败') } }, sources)
+  assert.equal((await failed.updater.installUpdate()).success, false)
+  assert.equal(failed.state.fetchCalls.length, 0, '停止失败不得安装更新')
+  let released = false
+  const badInstaller = loadUpdater({ installError: true, stopAllDownloads: async () => () => { released = true } }, sources)
+  assert.equal((await badInstaller.updater.installUpdate()).success, false)
+  assert.equal(released, true, '安装器事件报错后必须恢复下载入口')
+  released = false
+  const lateFailure = loadUpdater({ stopAllDownloads: async () => () => { released = true } }, sources)
+  assert.equal((await lateFailure.updater.installUpdate()).success, true)
+  assert.equal(released, false)
+  lateFailure.autoUpdater.emit('error', new Error('异步安装失败'))
+  assert.equal(released, true, '异步安装失败也必须恢复下载入口')
+}
+suite.case('安装更新等待下载停止，安装失败恢复入口，含变异反证', async () => {
+  await installChecks()
+  const file = 'electron/updater.ts', source = fs.readFileSync(file, 'utf8')
+  for (const [before, after] of [
+    ['resumeDownloads = await stopAllDownloads()', 'resumeDownloads = stopAllDownloads()'],
+    ["autoUpdater.once('error', failed)", 'void failed'],
+  ]) {
+    assert.ok(source.includes(before))
+    await assert.rejects(installChecks({ [file]: source.replace(before, after) }))
+  }
 })
 
 await suite.run()

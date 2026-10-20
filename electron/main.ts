@@ -2,7 +2,8 @@ import { app, BrowserWindow, session } from 'electron'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import fs from 'node:fs'
-import { getMainWindow, setMainWindow } from './store'
+import { activeDownloads, getMainWindow, setMainWindow } from './store'
+import { stopAllDownloads } from './download/ytdlp'
 import { createMenu } from './menu'
 import { registerAppIpc } from './ipc/app'
 import { registerDepsIpc } from './ipc/deps'
@@ -227,8 +228,17 @@ app.on('activate', () => {
   }
 })
 
-app.on('before-quit', () => {
+let stoppingDownloads = false
+app.on('before-quit', event => {
   log('[LIFECYCLE] before-quit')
+  if (!activeDownloads.size) return
+  event.preventDefault()
+  if (stoppingDownloads) return
+  stoppingDownloads = true
+  void stopAllDownloads().then(() => app.quit()).catch(() => {
+    stoppingDownloads = false
+    log('[LIFECYCLE] 下载进程尚未停止，保留应用以便重试退出')
+  })
 })
 
 app.on('will-quit', () => {

@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
+import { videoFilenameTemplate } from '../../shared/download-filename'
 import type { VideoInfo, VideoFormat, DownloadTask, AudioFormat, AudioTrack } from '../types'
 import { useDepsStore, readMissingKinds, stripDepMarkers } from './deps'
 import {
@@ -83,7 +84,7 @@ export const useDownloadStore = defineStore('download', () => {
   const downloadTasks = ref<DownloadTask[]>([])
   const downloadDir = ref('')
   const pausedTasks = new Set<string>()
-  const pauseRequests = new Map<string, Promise<unknown>>()
+  const pauseRequests = new Map<string, Promise<boolean>>()
   const taskExecutions = new Map<string, Promise<void>>()
   const taskProgressCleanups = new Map<string, () => void>()
 
@@ -178,7 +179,10 @@ export const useDownloadStore = defineStore('download', () => {
   }
 
   function removeTask(taskId: string) {
+    if (taskExecutions.has(taskId)) return
     downloadTasks.value = downloadTasks.value.filter(t => t.id !== taskId)
+    pausedTasks.delete(taskId)
+    pauseRequests.delete(taskId)
   }
 
   function clearCompletedTasks() {
@@ -188,18 +192,29 @@ export const useDownloadStore = defineStore('download', () => {
   function pauseTask(taskId: string) {
     const idx = downloadTasks.value.findIndex(t => t.id === taskId)
     if (idx !== -1) {
+      const previousStatus = downloadTasks.value[idx].status
+      if (pauseRequests.has(taskId) && previousStatus === 'paused') return
+      downloadTasks.value[idx].error = undefined
       downloadTasks.value[idx].status = 'paused'
       downloadTasks.value[idx].speed = undefined
       downloadTasks.value[idx].eta = undefined
       pausedTasks.add(taskId)
       const stopped = window.electronAPI?.ytdlp?.pauseDownload?.(taskId)
-      if (stopped) pauseRequests.set(taskId, Promise.resolve(stopped).catch(() => {}))
+      if (stopped) pauseRequests.set(taskId, Promise.resolve(stopped).then(() => true, () => {
+        const task = downloadTasks.value.find(item => item.id === taskId)
+        if (task && task.status === 'paused') {
+          task.status = previousStatus
+          task.error = t('err.pauseFailed')
+          pausedTasks.delete(taskId)
+        }
+        return false
+      }))
     }
   }
 
   async function resumeTask(task: DownloadTask) {
     // 前一次子进程完全退出后才能复用 taskId，避免旧调用清理新任务。
-    await pauseRequests.get(task.id)
+    if (await pauseRequests.get(task.id) === false) return
     // 暂停 IPC 和下载结果是独立通道，旧结果与监听必须先完成收尾。
     await taskExecutions.get(task.id)
     pauseRequests.delete(task.id)
@@ -223,6 +238,7 @@ export const useDownloadStore = defineStore('download', () => {
    * 已保存的 url / 格式 / 目录，回到 `pending` 交给队列调度。
    */
   function retryTask(taskId: string) {
+    if (taskExecutions.has(taskId)) return
     const idx = downloadTasks.value.findIndex(t => t.id === taskId)
     if (idx === -1 || downloadTasks.value[idx].status !== 'error') return
     Object.assign(downloadTasks.value[idx], retryReset())
@@ -258,7 +274,10 @@ export const useDownloadStore = defineStore('download', () => {
    * 同一个任务不会被启动两次。
    */
   function pumpQueue() {
-    for (const id of selectStartableTasks(downloadTasks.value)) {
+    // 尚未收尾的暂停任务也占槽，避免旧进程仍写文件时突破并发上限。
+    const scheduling = downloadTasks.value.map(task => taskExecutions.has(task.id)
+      ? { ...task, status: 'downloading' as const } : task)
+    for (const id of selectStartableTasks(scheduling)) {
       const task = downloadTasks.value.find(t => t.id === id)
       if (task) processDownload(task)
     }
@@ -313,7 +332,7 @@ export const useDownloadStore = defineStore('download', () => {
       const settings = readSettings()
       const cookieMode = settings.cookieMode
       const cookiesFile = cookieMode === 'manual' ? settings.cookiesFile : ''
-      const filenameTemplate = settings.filenameTemplate
+      const filenameTemplate = task.filenameTemplate ??= settings.filenameTemplate
       const proxy = settings.proxy
 
       const downloadOptions: any = {
@@ -469,6 +488,8 @@ export const useDownloadStore = defineStore('download', () => {
     ;(task as any).acceleration = { ...readSettings().acceleration }
     ;(task as any).selectedAudioTrack = selectedAudioTrack.value ? { ...selectedAudioTrack.value } : null
     ;(task as any).selectedSubtitles = []
+    task.filenameTemplate = downloadMode.value === 'video'
+      ? videoFilenameTemplate(readSettings().filenameTemplate) : readSettings().filenameTemplate
     downloadTasks.value.unshift(task)
     pumpQueue()
     isDownloading.value = false

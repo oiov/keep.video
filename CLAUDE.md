@@ -292,9 +292,20 @@ Formats are built by the pure `electron/parsers/formats.ts`. Three regressions i
 tested): keep formats without `vcodec` (X/Twitter mp4 has none), keep m3u8 only for heights with no
 direct link, and offer a `bv*+ba/b` fallback when nothing reports a height.
 
-Pause = `child.kill()` (plus `taskkill /T /F` on Windows), task dropped from the main process's
-`electron/store.ts` `activeDownloads`.
+Pause uses `electron/download/process-tree.ts`: a dedicated POSIX process group or Windows
+`taskkill /T /F`. Remove the active entry only after the whole tree and download call have stopped.
+A failed stop keeps the task, files and queue slot; it must not permit resume or removal.
 Resume re-spawns and continues from the `.part` file. **No cross-restart resume.**
+
+- Exit and update installation call `stopAllDownloads()`; success keeps the start gate closed.
+  Only a failed installation calls its returned release function, including installer error events.
+- `shared/download-filename.ts` adds a format suffix only for new video tasks. Each task fixes its
+  own template; legacy tasks keep their old names so partial files remain resumable.
+- `electron/parsers/info-cache.ts` caps the cache at 100 entries / 30 minutes, using a private
+  directory and random JSON filenames. Queued and running Web jobs retain references; eviction
+  deletes files only after the last reader releases them. Process exit cleans all remaining files.
+- `electron/utils/atomic-file.ts` provides same-directory atomic replacement. Corrupt desktop
+  history is backed up first; read or backup failures must not overwrite the original records.
 
 ### Task-level concurrency gate (`src/stores/download-rules.ts`)
 
@@ -310,7 +321,7 @@ and refills the queue.
   block requests that **compete for bandwidth** (every task gets slower — hard to attribute), and
   site 429s get likelier.
 - `merging` occupies a slot too (ffmpeg competes for CPU and disk); `paused` / `error` / `completed`
-  do not.
+  release their slots only after the old download call has fully settled.
 - Scheduling is by ascending `createdAt` (FIFO), otherwise the queue looks broken.
 - Failed tasks can be **retried** (`retryTask`, reset rules in `retryReset()`): it must return to
   `pending` to be rescheduled — staying on `error` makes "Retry" look like it does nothing.
@@ -452,3 +463,6 @@ under `## [Unreleased]`. When releasing, rewrite it to `## [x.y.z] - <date>` and
 - 服务端负责全局队列和匿名会话隔离，不能公开桌面管理 IPC；仅接受服务端解析出的格式。成品经 /api/files/:id 授权交付。
 
 - 在线页默认英文 /app/，中文 /zh/app/，其余语言与 shared/site-locales.json 一致；旧 /zh-cn/ 永久跳转到 /zh/。公开说明与表单共用导航，HTML 可索引，私有 /api/ 保持 noindex。浏览器额外七语词条位于 src/i18n/web-locales.json，新增键须同步并通过 lint:i18n。
+
+- Web 队列以真实下载调用收尾为释放槽位和删除目录的依据，不能只看 paused/error 状态。停止服务必须等待下载、上传及正在解析的请求。
+- 容器使用清单生成器提供的 `YtDlpTag` 与 `YtDlpZipappSHA256`，下载校验后才能执行；保留非 root、发行版 ffmpeg 和 local/R2 存储，不引入上游品牌或架构迁移。

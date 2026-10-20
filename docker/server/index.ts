@@ -134,4 +134,23 @@ const cleanup = setInterval(() => {
 cleanup.unref()
 await jobs.cleanup()
 server.listen(config.port, config.host, () => console.log('Keep Video 网站服务已启动'))
+let stopping = false
+async function shutdown() {
+  if (stopping) return
+  stopping = true
+  clearInterval(cleanup)
+  server.close()
+  for (const ws of sockets.keys()) ws.close(1001)
+  try {
+    await jobs.close()
+    egress.server.close()
+    process.exit(0)
+  } catch {
+    // 未确认进程树结束时不删工作文件，允许再次发送停止信号。
+    stopping = false
+    console.error('下载进程尚未停止，请重试停止服务')
+  }
+}
+process.on('SIGTERM', () => { void shutdown() })
+process.on('SIGINT', () => { void shutdown() })
 export { server }

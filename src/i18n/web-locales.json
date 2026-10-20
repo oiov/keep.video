@@ -288,7 +288,8 @@
     "about.techGo": "Sidecar: detecta y reutiliza el yt-dlp/ffmpeg que ya está en su sistema",
     "about.techNotBundled": "No incluido: resuelto en tiempo de ejecución",
     "err.ytdlpMissing": "yt-dlp no encontrado",
-    "err.depMissing": "{kind} no encontrado: descárgalo en Configuración → Dependencias de tiempo de ejecución, luego vuelve a intentarlo"
+    "err.depMissing": "{kind} no encontrado: descárgalo en Configuración → Dependencias de tiempo de ejecución, luego vuelve a intentarlo",
+    "err.pauseFailed": "No se pudo confirmar que la descarga se haya detenido. Vuelve a pausarla antes de reintentarlo."
   },
   "pt-BR": {
     "web.inputLabel": "Link do vídeo",
@@ -579,7 +580,8 @@
     "about.techGo": "Sidecar: detecta e reutiliza o yt-dlp/ffmpeg já em seu sistema",
     "about.techNotBundled": "Não empacotado – resolvido em tempo de execução",
     "err.ytdlpMissing": "yt-dlp não encontrado",
-    "err.depMissing": "{kind} não encontrado – baixe-o em Configurações → Dependências de tempo de execução e tente novamente"
+    "err.depMissing": "{kind} não encontrado – baixe-o em Configurações → Dependências de tempo de execução e tente novamente",
+    "err.pauseFailed": "Não foi possível confirmar que o download parou. Pause-o novamente antes de tentar outra vez."
   },
   "de": {
     "web.inputLabel": "Videolink",
@@ -870,7 +872,8 @@
     "about.techGo": "Sidecar: erkennt das bereits auf Ihrem System vorhandene yt-dlp/ffmpeg und verwendet es wieder",
     "about.techNotBundled": "Nicht gebündelt – wird zur Laufzeit behoben",
     "err.ytdlpMissing": "yt-dlp nicht gefunden",
-    "err.depMissing": "{kind} nicht gefunden – laden Sie es unter Einstellungen → Laufzeitabhängigkeiten herunter und versuchen Sie es dann erneut"
+    "err.depMissing": "{kind} nicht gefunden – laden Sie es unter Einstellungen → Laufzeitabhängigkeiten herunter und versuchen Sie es dann erneut",
+    "err.pauseFailed": "Der Download wurde möglicherweise nicht gestoppt. Pausiere ihn erneut, bevor du es nochmals versuchst."
   },
   "fr": {
     "web.inputLabel": "Lien vidéo",
@@ -1161,7 +1164,8 @@
     "about.techGo": "Sidecar : détecte et réutilise le yt-dlp/ffmpeg déjà présent sur votre système",
     "about.techNotBundled": "Non groupé - résolu au moment de l'exécution",
     "err.ytdlpMissing": "yt-dlp introuvable",
-    "err.depMissing": "{kind} introuvable – téléchargez-le sous Paramètres → Dépendances d'exécution, puis réessayez"
+    "err.depMissing": "{kind} introuvable – téléchargez-le sous Paramètres → Dépendances d'exécution, puis réessayez",
+    "err.pauseFailed": "Impossible de confirmer l’arrêt du téléchargement. Mettez-le à nouveau en pause avant de réessayer."
   },
   "ja": {
     "web.inputLabel": "動画のリンク",
@@ -1452,7 +1456,8 @@
     "about.techGo": "サイドカー: システム上に既に存在する yt-dlp / ffmpeg を検出して再利用します。",
     "about.techNotBundled": "バンドルされていません - 実行時に解決されます",
     "err.ytdlpMissing": "yt-dlp が見つかりません",
-    "err.depMissing": "{kind} が見つかりません - [設定] → [ランタイムの依存関係] でダウンロードして、再試行してください"
+    "err.depMissing": "{kind} が見つかりません - [設定] → [ランタイムの依存関係] でダウンロードして、再試行してください",
+    "err.pauseFailed": "ダウンロードの停止を確認できませんでした。もう一度一時停止してから再試行してください。"
   },
   "ko": {
     "web.inputLabel": "동영상 링크",
@@ -1743,7 +1748,8 @@
     "about.techGo": "사이드카: 시스템에 이미 있는 yt-dlp / ffmpeg를 감지하고 재사용합니다.",
     "about.techNotBundled": "번들로 제공되지 않음 - 런타임에 해결됨",
     "err.ytdlpMissing": "yt-dlp를 찾을 수 없습니다",
-    "err.depMissing": "{kind}를 찾을 수 없습니다. 설정 → 런타임 종속성에서 다운로드한 후 다시 시도하세요."
+    "err.depMissing": "{kind}를 찾을 수 없습니다. 설정 → 런타임 종속성에서 다운로드한 후 다시 시도하세요.",
+    "err.pauseFailed": "다운로드가 중지되었는지 확인할 수 없습니다. 다시 일시 중지한 후 재시도하세요."
   },
   "ru": {
     "web.inputLabel": "Ссылка на видео",
@@ -2034,6 +2040,7 @@
     "about.techGo": "Sidecar: обнаруживает и повторно использует файлы yt-dlp/ffmpeg, уже имеющиеся в вашей системе.",
     "about.techNotBundled": "Не в комплекте — решается во время выполнения",
     "err.ytdlpMissing": "yt-dlp не найден",
-    "err.depMissing": "{kind} не найден — загрузите его в «Настройки» → «Зависимости времени выполнения», затем повторите попытку."
+    "err.depMissing": "{kind} не найден — загрузите его в «Настройки» → «Зависимости времени выполнения», затем повторите попытку.",
+    "err.pauseFailed": "Не удалось подтвердить остановку загрузки. Снова приостановите её перед повторной попыткой."
   }
 }

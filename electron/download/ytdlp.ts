@@ -1,4 +1,4 @@
-import { spawn, execFile } from 'node:child_process'
+import { spawn } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { resolveDependency, getFfmpegLocation, checkJsRuntime } from '../utils/binary'
@@ -9,6 +9,8 @@ import { sendDownloadProgress, throttledProgress, clearProgressThrottle, formatB
 import { accelerationConnections, normalizeAcceleration, type AccelerationSettings } from '../../shared/acceleration'
 import { detectAria2 } from './aria2'
 import { parseAria2Progress } from './aria2-progress'
+import { killProcessTree, treeSpawnOptions } from './process-tree'
+import { retainInfoFile } from '../parsers/info-cache'
 
 /**
  * yt-dlp 下载路径。
@@ -174,7 +176,7 @@ export function buildYtdlpArgs(options: DownloadOptions, outputDir: string, ctx:
     args.push('--js-runtimes', `${ctx.jsRuntime.kind}:${ctx.jsRuntime.path}`)
   }
 
-  args.push(...getExtractorArgs(options.url))
+  args.push(...getExtractorArgs(options.url, options.cacheFile))
   return args
 }
 
@@ -237,20 +239,39 @@ export interface YtdlpRunResult {
  * （如直链过期），回退为按 URL 重新提取。
  */
 const taskAria2Paths = new Map<string, string | null>()
+let closing = 0
+
+export function assertDownloadCanStart(taskId: string) {
+  if (closing || activeDownloads.has(taskId)) throw new Error('下载任务尚未停止，请稍后重试')
+}
+
+export async function stopAllDownloads() {
+  closing++
+  let released = false
+  const resume = () => { if (!released) { released = true; closing-- } }
+  try {
+    await Promise.all([...activeDownloads.keys()].map(pauseDownload))
+    // 成功后保持入口关闭直到退出；安装失败时由调用方恢复，避免队列抢先补位。
+    return resume
+  } catch (error) { resume(); throw error }
+}
 
 export async function runYtdlpDownload(options: DownloadOptions, outputDir: string): Promise<YtdlpRunResult> {
+  assertDownloadCanStart(options.taskId)
+  const releaseInfo = retainInfoFile(options.cacheFile)
   let paused = false
   let finish!: () => void
   const preparing = { options, status: 'pending', abort: () => { paused = true }, stopped: new Promise<void>(resolve => { finish = resolve }) }
   activeDownloads.set(options.taskId, preparing)
   try {
-    return await executeYtdlpDownload(options, outputDir, () => paused)
+    return await executeYtdlpDownload(options, outputDir, () => paused, preparing.stopped)
   } catch (e) {
     if (paused) return pausedYtdlpResult()
     throw e
   } finally {
     if (activeDownloads.get(options.taskId) === preparing) activeDownloads.delete(options.taskId)
     finish()
+    releaseInfo()
   }
 }
 
@@ -258,7 +279,7 @@ function pausedYtdlpResult(): YtdlpRunResult {
   return { code: null, stderr: '', failedBrowsers: [], filePath: '', paused: true }
 }
 
-async function executeYtdlpDownload(options: DownloadOptions, outputDir: string, preparationPaused: () => boolean): Promise<YtdlpRunResult> {
+async function executeYtdlpDownload(options: DownloadOptions, outputDir: string, preparationPaused: () => boolean, stopped: Promise<void>): Promise<YtdlpRunResult> {
   const ytdlpPath = await resolveDependency('yt-dlp')
   if (preparationPaused()) return pausedYtdlpResult()
   if (!ytdlpPath) throw new Error('未找到可用的 yt-dlp')
@@ -299,10 +320,31 @@ async function executeYtdlpDownload(options: DownloadOptions, outputDir: string,
 
   const runOnce = (source: string[], cookieArgs: string[]) => new Promise<{ code: number | null; stderr: string }>((resolve, reject) => {
     if (preparationPaused() || isPaused) { isPaused = true; resolve({ code: null, stderr: '' }); return }
-    const child = spawn(ytdlpPath, [...args, ...cookieArgs, ...source], { cwd: path.dirname(ytdlpPath) })
+    const child = spawn(ytdlpPath, [...args, ...cookieArgs, ...source], { cwd: path.dirname(ytdlpPath), ...treeSpawnOptions() })
     let stderr = ''
-
-    activeDownloads.set(options.taskId, { child, options, status: 'downloading', setPaused: (v: boolean) => { isPaused = v } })
+    let stopping: Promise<void> | undefined
+    let closed = false
+    let closeCode: number | null = null
+    let stopConfirmed = false
+    let processError: Error | undefined
+    const complete = () => {
+      if (closed && (!isPaused || stopConfirmed)) {
+        if (processError) reject(processError)
+        else resolve({ code: closeCode, stderr })
+      }
+    }
+    const stop = () => {
+      isPaused = true
+      return stopping ??= killProcessTree(child).then(() => {
+        stopConfirmed = true
+        complete()
+      }, error => {
+        // 保留活动项与下载槽位；再次暂停可重试，不能与旧进程并发续传。
+        stopping = undefined
+        throw error
+      })
+    }
+    activeDownloads.set(options.taskId, { child, options, status: 'downloading', stop, stopped })
 
     const lineReader = () => {
       let pending = ''
@@ -330,9 +372,11 @@ async function executeYtdlpDownload(options: DownloadOptions, outputDir: string,
     child.on('close', (code) => {
       out.flush()
       err.flush()
-      resolve({ code, stderr })
+      closed = true
+      closeCode = code
+      complete()
     })
-    child.on('error', reject)
+    child.on('error', error => { processError = error })
   })
 
   sendDownloadProgress({ taskId: options.taskId, url: options.url, percent: 0, status: 'downloading', speed: '', eta: '' })
@@ -384,7 +428,7 @@ async function executeYtdlpDownload(options: DownloadOptions, outputDir: string,
   return { code, stderr, failedBrowsers, filePath: state.downloadedFile, paused: false }
 }
 
-/** 暂停：杀掉子进程（Windows 需连带子进程树），任务从活动表移除 */
+/** 暂停：等待整棵进程树结束，之后才允许恢复。 */
 export async function pauseDownload(taskId: string): Promise<boolean> {
   const download = activeDownloads.get(taskId)
   if (download?.abort) {
@@ -392,22 +436,10 @@ export async function pauseDownload(taskId: string): Promise<boolean> {
     await download.stopped
     return true
   }
-  if (download?.child) {
-    if (download.setPaused) download.setPaused(true)
-    const child = download.child
-    if (child.exitCode !== null || child.signalCode !== null) return true
-    // Windows 必须先杀整个树：先杀父进程会让 taskkill 丢失 PyInstaller 子进程。
-    const stopped = new Promise<boolean>(resolve => {
-      child.once('close', () => resolve(true))
-      child.once('error', () => resolve(false))
-    })
-    if (process.platform === 'win32' && child.pid) {
-      execFile(path.join(process.env.SystemRoot || 'C:\\Windows', 'System32', 'taskkill.exe'),
-        ['/PID', String(child.pid), '/T', '/F'], { windowsHide: true }, (error) => {
-          if (error && child.exitCode === null) child.kill()
-        })
-    } else child.kill()
-    return stopped
+  if (download?.stop) {
+    await download.stop()
+    await download.stopped
+    return true
   }
   return false
 }

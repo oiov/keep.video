@@ -16,6 +16,8 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
+import assert from 'node:assert/strict'
+import { createRequire } from 'node:module'
 import { createSuite } from './lib/harness.mjs'
 import { loader } from './lib/load-source.mjs'
 
@@ -261,6 +263,59 @@ suite.case('设置字段与文档一致（改形状会静默失效）', async (t
   const s = loadSettings(undefined)
   for (const key of Object.keys(s.DEFAULT_SETTINGS)) {
     t.ok(doc.includes(key), `AGENTS.md 必须提到设置字段 ${key}（改形状属于 MAJOR 变更）`)
+  }
+})
+
+async function refreshChecks(sources = {}) {
+  const require = createRequire(import.meta.url)
+  const pinia = require('pinia')
+  pinia.setActivePinia(pinia.createPinia())
+  const pending = [], calls = []
+  let subscriptions = 0
+  const request = kind => { calls.push(kind); return new Promise((resolve, reject) => pending.push({ resolve, reject })) }
+  const load = loader({ 'src/i18n/index.ts': { t: key => key } }, {
+    localStorage: { getItem: () => null },
+    window: { electronAPI: { deps: {
+      onProgress: () => { subscriptions++ }, status: () => request('status'), check: () => request('check'),
+    } } },
+  }, sources)
+  const store = load('src/stores/deps.ts').useDepsStore()
+  const tick = () => new Promise(resolve => setImmediate(resolve))
+  let completed = 0
+  const first = store.refresh().then(() => completed++)
+  const second = store.refresh().then(() => completed++)
+  const forced = store.refresh(true), forcedAgain = store.refresh(true)
+  await tick()
+  assert.equal(completed, 0, '所有调用者必须等同一次检测完成')
+  assert.deepEqual(calls, ['status'])
+  const status = { results: [{ kind: 'yt-dlp', found: true }], checkedAt: 1, managedDir: '' }
+  pending[0].resolve({ success: true, status })
+  await Promise.all([first, second]); await tick()
+  assert.deepEqual(calls, ['status', 'check'], '多个 force 等待者只发起一次强制检测')
+  assert.equal(store.checking, true)
+  pending[1].resolve({ success: true, status: { ...status, checkedAt: 2 } })
+  await Promise.all([forced, forcedAgain])
+  assert.equal(store.status.checkedAt, 2)
+  assert.equal(store.checking, false)
+  assert.equal(subscriptions, 1)
+  const failure = store.refresh(true)
+  await tick(); pending[2].reject(new Error('探测失败')); await failure
+  assert.equal(store.error, '探测失败')
+  assert.equal(store.checking, false)
+  const retry = store.refresh()
+  await tick(); pending[3].resolve({ success: true, status }); await retry
+  assert.equal(store.error, '')
+}
+
+suite.case('并发依赖刷新、force 升级、失败恢复与变异验证', async () => {
+  await refreshChecks()
+  const file = 'src/stores/deps.ts', source = fs.readFileSync(file, 'utf8')
+  for (const [before, after] of [
+    ['await refreshPromise', 'return'],
+    ['if (needsForcedCheck) return refresh(true)', 'if (false) return refresh(true)'],
+  ]) {
+    assert.ok(source.includes(before))
+    await assert.rejects(refreshChecks({ [file]: source.replace(before, after) }))
   }
 })
 

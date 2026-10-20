@@ -129,27 +129,41 @@ export const useDepsStore = defineStore('deps', () => {
     })
   }
 
-  /** 读取当前状态；force 时强制重新探测（忽略主进程 60 秒缓存） */
+  let refreshPromise: Promise<void> | null = null
+  let refreshForced = false
+
+  /** 并发调用必须等到状态落地；强制刷新不能被正在读取的旧缓存吞掉。 */
   async function refresh(force = false) {
     subscribe()
-    if (checking.value) return
-    checking.value = true
-    error.value = ''
-    try {
-      const { depPaths, proxy } = readSettings()
-      const res = force
-        ? await window.electronAPI.deps.check({ manualPaths: { ...depPaths }, proxy })
-        : await window.electronAPI.deps.status({ manualPaths: { ...depPaths }, proxy })
-      if (res.success && res.status) {
-        status.value = res.status
-      } else if (res.error) {
-        error.value = res.error
-      }
-    } catch (e: any) {
-      error.value = e?.message || t('deps.checkFailed')
-    } finally {
-      checking.value = false
+    if (refreshPromise) {
+      const needsForcedCheck = force && !refreshForced
+      await refreshPromise
+      if (needsForcedCheck) return refresh(true)
+      return
     }
+    checking.value = true
+    refreshForced = force
+    error.value = ''
+    refreshPromise = Promise.resolve().then(async () => {
+      try {
+        const { depPaths, proxy } = readSettings()
+        const res = force
+          ? await window.electronAPI.deps.check({ manualPaths: { ...depPaths }, proxy })
+          : await window.electronAPI.deps.status({ manualPaths: { ...depPaths }, proxy })
+        if (res.success && res.status) {
+          status.value = res.status
+        } else if (res.error) {
+          error.value = res.error
+        }
+      } catch (e: any) {
+        error.value = e?.message || t('deps.checkFailed')
+      } finally {
+        checking.value = false
+        refreshForced = false
+        refreshPromise = null
+      }
+    })
+    return refreshPromise
   }
 
   /** 下载缺失依赖；only 为空时下载全部缺失项 */

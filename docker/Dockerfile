@@ -16,8 +16,16 @@ RUN pnpm exec esbuild docker/server/index.ts --bundle --platform=node --format=e
 FROM node:22-bookworm-slim
 COPY --from=backend /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources && apt-get -o Acquire::Retries=3 update && apt-get -o Acquire::Retries=3 install -y --no-install-recommends ca-certificates curl ffmpeg tini python3 && rm -rf /var/lib/apt/lists/*
-ARG YTDLP_VERSION=2026.10.10.233141
-RUN curl -fsSL "https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/$YTDLP_VERSION/yt-dlp" -o /usr/local/bin/yt-dlp && chmod +x /usr/local/bin/yt-dlp && yt-dlp --version
+COPY backend/internal/manifest/assets.gen.go /tmp/deps-manifest.go
+RUN set -eu; \
+    version=$(sed -n 's/^const YtDlpTag = "\([^"]*\)"/\1/p' /tmp/deps-manifest.go); \
+    sha256=$(sed -n 's/^const YtDlpZipappSHA256 = "\([^"]*\)"/\1/p' /tmp/deps-manifest.go); \
+    test -n "$version" && test "${#sha256}" -eq 64; \
+    curl -fsSL "https://github.com/yt-dlp/yt-dlp-nightly-builds/releases/download/$version/yt-dlp" -o /usr/local/bin/yt-dlp; \
+    printf '%s  %s\n' "$sha256" /usr/local/bin/yt-dlp | sha256sum -c -; \
+    chmod +x /usr/local/bin/yt-dlp; \
+    yt-dlp --version; \
+    rm /tmp/deps-manifest.go
 WORKDIR /app
 COPY docker/package.json docker/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts

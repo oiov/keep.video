@@ -309,9 +309,17 @@ aria2 临时片段隔离在输出目录 `.downvid-aria2` 中，同一暂停任�
 保留无 `vcodec` 的格式（X/Twitter mp4 没有该字段）、m3u8 仅在该清晰度无直链时保留、
 都没有分辨率时提供 `bv*+ba/b`「最佳画质」兜底。
 
-暂停（yt-dlp 路径）= `child.kill()`（Windows 额外 `taskkill /T /F`），任务从
-`electron/store.ts` 的 `activeDownloads` 移除。恢复 = 重新 spawn，从 `.part` 续传。
+暂停（yt-dlp 路径）由 `electron/download/process-tree.ts` 处理：POSIX 使用独立进程组，
+Windows 使用 `taskkill /T /F`，确认整树停止且下载调用收尾后才移除活动项。
+停止失败必须保留任务、文件和并发槽位，不能直接恢复或删除；恢复 = 重新 spawn，从 `.part` 续传。
 **无跨重启恢复。**
+
+- 退出与安装更新前调用 `stopAllDownloads()`；成功后保持启动入口关闭，安装失败才调用返回的恢复函数。
+  安装器通过 error 事件报错也必须解锁，不能只处理同步异常。
+- `shared/download-filename.ts` 只为新视频任务补格式后缀，任务固定自己的模板；旧任务不补后缀，避免丢失续传片段。
+- `electron/parsers/info-cache.ts` 限制 100 条 / 30 分钟，临时 JSON 使用私有目录和随机文件名。
+  排队与执行中的 Web 任务持有引用，淘汰不删除在用文件，最后一次释放后清理；进程退出统一清理。
+- `electron/utils/atomic-file.ts` 提供同目录原子替换；桌面历史损坏先独立备份，读文件或备份失败不得覆盖原记录。
 
 ### 任务级并发闸门（`src/stores/download-rules.ts`）
 
@@ -324,7 +332,7 @@ aria2 临时片段隔离在输出目录 `.downvid-aria2` 中，同一暂停任�
   就被置回 `false`。
 - 没有这道闸时，连点几次「下载」会同时跑起多个任务，每个再开 8～16 路分块，
   **互相抢带宽**（表现为「每一个都变慢」，很难归因），也更容易触发站点 429。
-- `merging` 同样占槽位（ffmpeg 在抢 CPU 与磁盘）；`paused` / `error` / `completed` 不占。
+- `merging` 同样占槽位（ffmpeg 在抢 CPU 与磁盘）；`paused` / `error` / `completed` 只有在旧下载调用完全收尾后才释放槽位。
 - 调度按 `createdAt` 升序（先进先出），否则用户会觉得队列坏了。
 - 失败任务可**重试**（`retryTask`，重置规则在 `retryReset()`）：必须回到 `pending`
   才会被重新调度，停在 `error` 上会让「重试」看起来毫无反应。
@@ -465,3 +473,6 @@ CHANGELOG 用 `## [Unreleased]` 段落累积改动。发布时再一次性改成
 - 服务端负责全局队列和匿名会话隔离，不能公开桌面管理 IPC；仅接受服务端解析出的格式。成品经 /api/files/:id 授权交付。
 
 - 在线页默认英文 /app/，中文 /zh/app/，其余语言与 shared/site-locales.json 一致；旧 /zh-cn/ 永久跳转到 /zh/。公开说明与表单共用导航，HTML 可索引，私有 /api/ 保持 noindex。浏览器额外七语词条位于 src/i18n/web-locales.json，新增键须同步并通过 lint:i18n。
+
+- Web 队列以真实下载调用收尾为释放槽位和删除目录的依据，不能只看 paused/error 状态。停止服务必须等待下载、上传及正在解析的请求。
+- 容器使用清单生成器提供的 `YtDlpTag` 与 `YtDlpZipappSHA256`，下载校验后才能执行；保留非 root、发行版 ffmpeg 和 local/R2 存储，不引入上游品牌或架构迁移。

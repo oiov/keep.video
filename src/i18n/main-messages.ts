@@ -23,6 +23,8 @@ const MAIN_MESSAGES: Record<string, string> = {
   '未找到可用的 yt-dlp': 'err.ytdlpMissing',
   '磁盘空间不足': 'err.diskFull',
   '网络连接中断，请重试': 'err.network',
+  '无法停止下载进程，请稍后重试': 'err.pauseFailed',
+  '下载任务尚未停止，请稍后重试': 'err.pauseFailed',
 }
 
 /**

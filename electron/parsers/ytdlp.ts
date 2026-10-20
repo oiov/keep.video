@@ -1,25 +1,15 @@
 import { spawn } from 'node:child_process'
 import path from 'node:path'
 import { resolveDependency, checkJsRuntime } from '../utils/binary'
+import { cachedStatusSnapshot } from '../utils/runtime'
 import { getCookieAttempts, runWithCookies, cookieFailureHint, isCookieError } from '../utils/cookies'
 import { classifyParseError, parseDiagnostic, PARSE_MESSAGES } from '../../shared/parse-error'
 import { nextYoutubeRetry, youtubeExtractorArgs, type YoutubeRetryState } from './youtube-retry'
 import { isTwitterUrl } from '../utils/platform'
 import { LANG_NAMES } from '../constants'
 import { buildVideoFormats } from './formats'
-import fs from 'node:fs'
-import os from 'node:os'
-
-// 解析结果缓存
-const PARSE_CACHE_VERSION = 5
-const parseCache = new Map<string, { data: any; time: number; ver: number }>()
-const PARSE_CACHE_TTL = 30 * 60 * 1000
-
-// 解析成功时额外使用的 extractor 参数（如 X/Twitter 回退到 syndication 接口），下载时沿用
-const extractorArgsByUrl = new Map<string, string[]>()
-export function getExtractorArgs(url: string): string[] {
-  return extractorArgsByUrl.get(url) || []
-}
+import { cacheParsedInfo, getCachedParse } from './info-cache'
+export { getExtractorArgs } from './info-cache'
 
 function buildBaseArgs(isYoutube: boolean): string[] {
   const args = [
@@ -36,13 +26,9 @@ function applyProxy(args: string[], proxy?: string) {
   if (proxy) args.push('--proxy', proxy)
 }
 
-async function runYtdlp(args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
-  // 依赖不随包分发：解析前先确认 yt-dlp 存在，缺失时抛出可引导下载的错误
-  const ytdlpPath = await resolveDependency('yt-dlp')
-  // resolveDependency 在 required=true 时不会返回 null；这里显式兜一次让类型收敛
-  if (!ytdlpPath) throw new Error('未找到可用的 yt-dlp')
+async function runYtdlp(ytdlpPath: string, args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
-    const child = spawn(ytdlpPath, args, { cwd: path.dirname(ytdlpPath), windowsHide: true, timeout: args.includes('--version') ? 3000 : 90000 })
+    const child = spawn(ytdlpPath, args, { cwd: path.dirname(ytdlpPath), windowsHide: true, timeout: 90000 })
     let stdout = ''
     let stderr = ''
     child.stdout.on('data', (d: Buffer) => { stdout += d.toString() })
@@ -54,23 +40,12 @@ async function runYtdlp(args: string[]): Promise<{ code: number | null; stdout: 
 
 // 完整解析：拿格式列表
 export async function parseWithYtdlp(url: string, cookiesFile?: string, proxy?: string): Promise<any> {
-  const cacheKey = `${url}|${cookiesFile || ''}|${proxy || ''}`
-  const cached = parseCache.get(cacheKey)
-  if (cached && cached.ver === PARSE_CACHE_VERSION && Date.now() - cached.time < PARSE_CACHE_TTL) {
-    return cached.data
-  }
+  const cacheKey = JSON.stringify([url, cookiesFile || '', proxy || ''])
+  const cached = getCachedParse(cacheKey)
+  if (cached) return cached
 
   // 直接使用 CLI（自带 yt-dlp 二进制），不启动常驻 daemon：避免常驻 Python 内存占用与版本不一致
   return parseViaCli(url, cookiesFile, proxy, cacheKey)
-}
-
-function cleanupCache() {
-  for (const [key, val] of parseCache) {
-    if (val.ver !== PARSE_CACHE_VERSION || Date.now() - val.time > PARSE_CACHE_TTL) {
-      parseCache.delete(key)
-      if (val.data?.cacheFile) fs.rm(val.data.cacheFile, { force: true }, () => {})
-    }
-  }
 }
 
 async function dumpInfo(url: string, cookiesFile: string | undefined, proxy: string | undefined, extraArgs: string[]) {
@@ -82,19 +57,21 @@ async function dumpInfo(url: string, cookiesFile: string | undefined, proxy: str
     throw new Error('[[parse-error:runtime-unavailable]]' + PARSE_MESSAGES['runtime-unavailable'])
   }
   if (runtime?.path && runtime.kind) base.push('--js-runtimes', `${runtime.kind}:${runtime.path}`)
-  const versionRun = isYoutube ? await runYtdlp(['--ignore-config', '--version']) : null
-  const version = versionRun?.code === 0 ? versionRun.stdout.trim() : ''
+  const ytdlpPath = await resolveDependency('yt-dlp')
+  if (!ytdlpPath) throw new Error('未找到可用的 yt-dlp')
+  // 首次 resolveDependency 会填充缓存；只用与本次执行路径一致的探测版本。
+  const version = cachedStatusSnapshot()?.results.find(dep => dep.kind === 'yt-dlp' && dep.found && dep.path === ytdlpPath)?.version || ''
   let state: YoutubeRetryState = { manifests: false, client: '' }
   let retries = 0
   const run = await runWithCookies(getCookieAttempts(cookiesFile), async (cookieArgs) => {
-    let result = await runYtdlp([...base, ...(isYoutube ? youtubeExtractorArgs(state) : []), ...cookieArgs, url])
+    let result = await runYtdlp(ytdlpPath, [...base, ...(isYoutube ? youtubeExtractorArgs(state) : []), ...cookieArgs, url])
     // 重试在同一次 Cookie 生命周期内完成；临时快照尚未清理，登录来源不变。
     while (isYoutube && result.code !== 0 && retries < 2 && !isCookieError(result.stderr)) {
       const next = nextYoutubeRetry(result.stderr, state, version)
       if (!next) break
       state = next
       retries++
-      result = await runYtdlp([...base, ...youtubeExtractorArgs(state), ...cookieArgs, url])
+      result = await runYtdlp(ytdlpPath, [...base, ...youtubeExtractorArgs(state), ...cookieArgs, url])
     }
     return result
   })
@@ -117,9 +94,6 @@ async function parseViaCli(url: string, cookiesFile: string | undefined, proxy: 
     throw new Error(`[[parse-error:${kind}]]` + parseDiagnostic(run.stderr, { ytdlp: run.version, runtime: run.runtimeVersion }) + cookieFailureHint(run.failedBrowsers))
   }
   if (isYoutube && run.state.client) extraArgs = youtubeExtractorArgs(run.state)
-
-  if (extraArgs.length) extractorArgsByUrl.set(url, extraArgs)
-  else extractorArgsByUrl.delete(url)
 
   // 多视频推文等播放列表会逐行输出多个 JSON，只取第一个条目
   const output = run.stdout.split('\n').find(line => line.trim().startsWith('{')) || ''
@@ -176,12 +150,7 @@ async function parseViaCli(url: string, cookiesFile: string | undefined, proxy: 
         ? '已通过兼容解析重试恢复；本次重试使用的 Cookie 来源未改变。' : '',
     }
     // 保存原始 info JSON：下载时用 --load-info-json 跳过 yt-dlp 二次提取
-    try {
-      result.cacheFile = path.join(os.tmpdir(), `downvid-${String(info.id || Date.now()).replace(/[^\w-]/g, '_')}.json`)
-      fs.writeFileSync(result.cacheFile, output)
-    } catch {}
-    parseCache.set(cacheKey, { data: result, time: Date.now(), ver: PARSE_CACHE_VERSION })
-    cleanupCache()
+    cacheParsedInfo(cacheKey, url, result, output, extraArgs)
     return result
   } catch {
     throw new Error('[[parse-error:unknown]]解析响应格式无效')

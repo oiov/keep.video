@@ -3,33 +3,43 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { dedupeHistory, upsertHistory } from '../history'
+import { writeFileAtomic } from '../utils/atomic-file'
 import type { HistoryRecord } from '../../src/types'
 
 const historyFile = path.join(app.getPath('userData'), 'download-history.json')
 
 function readHistory(): HistoryRecord[] {
+  let text: string
+  try { text = fs.readFileSync(historyFile, 'utf8') }
+  catch (error: any) {
+    if (error?.code === 'ENOENT') return []
+    throw error
+  }
+  let saved: unknown
   try {
-    if (fs.existsSync(historyFile)) {
-      const saved = JSON.parse(fs.readFileSync(historyFile, 'utf8'))
-      if (!Array.isArray(saved)) return []
-      const history = dedupeHistory(saved).slice(0, 100)
-      if (JSON.stringify(history) !== JSON.stringify(saved)) {
-        try {
-          const backup = historyFile + '.bak'
-          if (!fs.existsSync(backup)) fs.copyFileSync(historyFile, backup, fs.constants.COPYFILE_EXCL)
-          writeHistory(history)
-        } catch (error) {
-          console.error('整理下载历史失败：', error)
-        }
-      }
-      return history
+    saved = JSON.parse(text)
+    if (!Array.isArray(saved)) throw new Error('历史格式无效')
+  } catch {
+    // 备份失败必须向调用方报错，不能随后把不可读取的原始历史覆盖成空列表。
+    fs.copyFileSync(historyFile, `${historyFile}.corrupt-${randomUUID()}.bak`, fs.constants.COPYFILE_EXCL)
+    writeHistory([])
+    return []
+  }
+  const history = dedupeHistory(saved as HistoryRecord[]).slice(0, 100)
+  if (JSON.stringify(history) !== JSON.stringify(saved)) {
+    try {
+      const backup = historyFile + '.bak'
+      if (!fs.existsSync(backup)) fs.copyFileSync(historyFile, backup, fs.constants.COPYFILE_EXCL)
+      writeHistory(history)
+    } catch (error) {
+      console.error('整理下载历史失败：', error)
     }
-  } catch {}
-  return []
+  }
+  return history
 }
 
 function writeHistory(history: HistoryRecord[]) {
-  fs.writeFileSync(historyFile, JSON.stringify(history, null, 2))
+  writeFileAtomic(historyFile, JSON.stringify(history, null, 2))
 }
 
 function fileExists(filePath: string): boolean {

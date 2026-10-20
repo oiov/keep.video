@@ -3,6 +3,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import http from 'node:http'
+import { spawn } from 'node:child_process'
+import { EventEmitter, once } from 'node:events'
 import { createRequire } from 'node:module'
 import { loader } from './lib/load-source.mjs'
 
@@ -151,7 +153,7 @@ async function directChecks() {
   }
 }
 
-async function storeChecks() {
+async function storeChecks(sources = {}) {
   const pinia = require('pinia')
   pinia.setActivePinia(pinia.createPinia())
   let saved = '{}'
@@ -167,7 +169,7 @@ async function storeChecks() {
   }
   const load = loader({
     'src/stores/deps.ts': { useDepsStore: () => ({ deps: [], promptForMissing: () => {} }), readMissingKinds: () => [], stripDepMarkers: x => x },
-  }, { window: { electronAPI: api }, localStorage: storage })
+  }, { window: { electronAPI: api }, localStorage: storage }, sources)
   const { useDownloadStore } = load('src/stores/download.ts')
   const { updateSettings } = load('src/stores/settings.ts')
   const store = useDownloadStore()
@@ -178,7 +180,9 @@ async function storeChecks() {
   await store.startDownload()
   const task = store.downloadTasks[0]
   const newDir = path.join(temp, 'new-directory')
-  updateSettings({ downloadDir: newDir })
+  const originalTemplate = calls[0].filenameTemplate
+  assert.ok(originalTemplate.includes('%(format_id)s'), '新视频任务必须区分格式')
+  updateSettings({ downloadDir: newDir, filenameTemplate: 'changed.%(ext)s' })
   store.pauseTask(task.id)
   const resume = store.resumeTask(task)
   const duplicateResume = store.resumeTask(task)
@@ -190,6 +194,7 @@ async function storeChecks() {
   assert.equal(task.status, 'downloading')
   assert.deepEqual(cleanups, [1])
   assert.equal(calls[1].outputDir, temp, '续传保持原目录')
+  assert.equal(calls[1].filenameTemplate, originalTemplate, '续传不跟随模板设置变化')
   listeners[1]({ taskId: task.id, percent: 50, status: 'downloading' })
   assert.equal(task.progress, 50)
   assert.equal(history.length, 0)
@@ -202,6 +207,22 @@ async function storeChecks() {
   await store.startDownload()
   assert.equal(calls[2].outputDir, newDir, '新任务立即使用保存的目录')
   pending[2]({ paused: true })
+  await tick()
+  const oldTask = store.downloadTasks[0]
+  delete oldTask.filenameTemplate
+  await store.resumeTask(oldTask)
+  assert.equal(calls[3].filenameTemplate, 'changed.%(ext)s', '旧任务不补后缀，以免丢失旧片段')
+  api.ytdlp.pauseDownload = async () => { throw new Error('模拟停止失败') }
+  store.pauseTask(oldTask.id)
+  await store.resumeTask(oldTask)
+  assert.equal(oldTask.status, 'downloading', '暂停失败保留运行状态和槽位')
+  assert.ok(oldTask.error, '暂停失败必须向用户显示')
+  store.removeTask(oldTask.id)
+  assert.ok(store.downloadTasks.includes(oldTask), '旧进程未结束不能删除后重建任务')
+  assert.equal(calls.length, 4)
+  api.ytdlp.pauseDownload = async () => true
+  store.pauseTask(oldTask.id)
+  pending[3]({ paused: true })
   await tick()
   console.log('通过：旧下载收尾后恢复、重复继续防重入、进度监听、历史仅完成写入、目录立即生效')
 }
@@ -253,10 +274,177 @@ async function preparingChecks() {
   console.log('通过：探测/准备期间暂停不会事后启动下载进程')
 }
 
+async function treeChecks(sources = {}) {
+  let now = 0, alive = true
+  const signals = []
+  const load = loader({}, {
+    process: { kill: (pid, signal) => {
+      assert.equal(pid, -45678, '必须给进程组发信号，不是只给父进程')
+      signals.push(signal)
+      if (!alive) throw Object.assign(new Error('gone'), { code: 'ESRCH' })
+      if (signal === 'SIGKILL') alive = false
+    } },
+    Date: { now: () => now },
+    setTimeout: (callback, milliseconds) => { now += milliseconds; queueMicrotask(callback) },
+  }, sources)
+  const tree = load('electron/download/process-tree.ts')
+  // 父进程早已退出，孙进程仍然忽略 TERM。
+  await tree.killProcessTree({ pid: 45678, exitCode: 0, signalCode: null }, 'linux')
+  assert.ok(signals.includes('SIGKILL'))
+  assert.equal(alive, false)
+  assert.ok(tree.treeSpawnOptions('linux').detached)
+  assert.equal(tree.treeSpawnOptions('win32').detached, false)
+}
+
+async function treeBoundaryChecks() {
+  let callback, calls = 0, settled = false
+  const tree = loader({ 'node:child_process': { execFile: (file, args, options, done) => {
+    assert.equal(file, path.win32.join('C:\\Windows', 'System32', 'taskkill.exe'))
+    assert.equal(Array.from(args).join(' '), '/PID 45678 /T /F')
+    assert.equal(options.timeout, 5000)
+    calls++; callback = done
+  } } }, { process: { env: {} } })('electron/download/process-tree.ts')
+  const child = { pid: 45678, exitCode: 0, signalCode: null }
+  const pending = tree.killProcessTree(child, 'win32').then(() => { settled = true })
+  await tick(); assert.equal(settled, false)
+  callback(null); await pending; assert.equal(calls, 1)
+  const failure = tree.killProcessTree(child, 'win32')
+  const rejected = assert.rejects(failure, /无法停止/)
+  callback(new Error('taskkill failed')); await rejected
+  const denied = loader({}, { process: { kill: () => { throw Object.assign(new Error('denied'), { code: 'EPERM' }) } } })('electron/download/process-tree.ts')
+  await assert.rejects(denied.killProcessTree(child, 'linux'), /denied/)
+  let now = 0
+  const stuck = loader({}, { process: { kill: () => {} }, Date: { now: () => now }, setTimeout: (done, ms) => { now += ms; queueMicrotask(done) } })('electron/download/process-tree.ts')
+  await assert.rejects(stuck.killProcessTree(child, 'linux'), /无法停止/)
+  assert.ok(now <= 3500, '停止失败必须有预算上限')
+}
+
+async function realTreeCheck() {
+  const descendant = `process.on('SIGTERM', () => {}); console.log('ready:' + process.pid); setInterval(() => {}, 1000)`
+  const parent = `require('node:child_process').spawn(process.execPath, ['-e', ${JSON.stringify(descendant)}], { stdio: ['ignore', 'inherit', 'inherit'] }); setInterval(() => {}, 1000)`
+  const tree = loader()('electron/download/process-tree.ts')
+  const child = spawn(process.execPath, ['-e', parent], { ...tree.treeSpawnOptions(), stdio: ['ignore', 'pipe', 'pipe'] })
+  const closed = once(child, 'close')
+  let output = ''
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error('进程树测试启动超时')), 10000)
+      child.stdout.on('data', data => { output += data; if (/ready:\d+/.test(output)) { clearTimeout(timer); resolve() } })
+      child.once('error', error => { clearTimeout(timer); reject(error) })
+    })
+    await tree.killProcessTree(child)
+    await closed
+    const pid = Number(/ready:(\d+)/.exec(output)[1])
+    assert.throws(() => process.kill(pid, 0), error => error.code === 'ESRCH', '孙进程必须真正停止')
+  } finally {
+    if (process.platform !== 'win32') { try { process.kill(-child.pid, 'SIGKILL') } catch {} }
+    else if (child.exitCode === null && child.signalCode === null) await tree.killProcessTree(child).catch(() => {})
+  }
+}
+
+async function stopFailureCheck(sources = {}) {
+  const child = new EventEmitter()
+  child.stdout = new EventEmitter(); child.stderr = new EventEmitter(); child.pid = 45678
+  const activeDownloads = new Map()
+  let stops = 0, done = false
+  const load = loader({
+    'electron/store.ts': { activeDownloads },
+    'electron/utils/binary.ts': { resolveDependency: async () => 'tool', getFfmpegLocation: () => '' },
+    'electron/parsers/ytdlp.ts': { getExtractorArgs: () => [] },
+    'electron/parsers/info-cache.ts': { retainInfoFile: () => () => {} },
+    'electron/download/progress.ts': { sendDownloadProgress: () => {}, clearProgressThrottle: () => {} },
+    'electron/utils/cookies.ts': { getCookieAttempts: () => [], runWithCookies: async (_attempts, run) => ({ ...await run([]), failedBrowsers: [] }) },
+    'node:child_process': { spawn: () => child },
+    'electron/download/process-tree.ts': { treeSpawnOptions: () => ({}), killProcessTree: async () => {
+      stops++
+      if (stops === 1) throw new Error('模拟整树停止失败')
+      child.emit('close', 0)
+    } },
+  }, {}, sources)
+  const runtime = load('electron/download/ytdlp.ts')
+  const options = { taskId: 'stopping', url: 'https://example.com/video', formatId: 'best', acceleration: { enabled: false } }
+  const running = runtime.runYtdlpDownload(options, temp).then(value => { done = true; return value })
+  await tick()
+  await assert.rejects(runtime.pauseDownload(options.taskId), /模拟整树停止失败/)
+  child.emit('close', 0)
+  await tick()
+  assert.equal(done, false, '整树未停止，即使父进程 close 也不能结束下载调用')
+  assert.ok(activeDownloads.has(options.taskId))
+  await assert.rejects(runtime.runYtdlpDownload(options, temp), /尚未停止/)
+  await runtime.pauseDownload(options.taskId)
+  assert.equal((await running).paused, true)
+  assert.equal(stops, 2)
+  assert.equal(activeDownloads.size, 0)
+  const stoppingAll = runtime.stopAllDownloads()
+  assert.throws(() => runtime.assertDownloadCanStart('next'), /尚未停止/)
+  const resume = await stoppingAll
+  assert.throws(() => runtime.assertDownloadCanStart('next'), /尚未停止/, '安装前仍需封住启动入口')
+  resume(); resume()
+  runtime.assertDownloadCanStart('next')
+}
+
+function atomicHistoryChecks(sources = {}) {
+  const dir = fs.mkdtempSync(path.join(temp, 'history-'))
+  const file = path.join(dir, 'download-history.json')
+  const atomic = loader({}, {}, sources)('electron/utils/atomic-file.ts').writeFileAtomic
+  atomic(file, 'old')
+  for (const method of ['writeFileSync', 'fsyncSync', 'renameSync']) {
+    const faulty = loader({ 'node:fs': { ...fs, [method]: () => { throw new Error('模拟故障-' + method) } } }, {}, sources)('electron/utils/atomic-file.ts').writeFileAtomic
+    assert.throws(() => faulty(file, 'new'), /模拟故障/)
+    assert.equal(fs.readFileSync(file, 'utf8'), 'old', `${method} 失败不能丢失原文件`)
+    assert.deepEqual(fs.readdirSync(dir), ['download-history.json'])
+  }
+  atomic(file, 'new'); assert.equal(fs.readFileSync(file, 'utf8'), 'new')
+  if (process.platform !== 'win32') assert.equal(fs.statSync(file).mode & 0o777, 0o600)
+  const failedCleanup = loader({ 'node:fs': { ...fs, rmSync: () => { throw new Error('清理失败') } } }, {}, sources)('electron/utils/atomic-file.ts').writeFileAtomic
+  failedCleanup(file, 'saved'); assert.equal(fs.readFileSync(file, 'utf8'), 'saved')
+  return { dir, file }
+}
+
+async function historyChecks(sources = {}) {
+  const { dir, file } = atomicHistoryChecks(sources)
+  const handlers = new Map()
+  const mocks = { electron: { app: { getPath: () => dir }, ipcMain: { handle: (name, callback) => handlers.set(name, callback) }, BrowserWindow: { getAllWindows: () => [] } } }
+  loader(mocks, {}, sources)('electron/ipc/history.ts').registerHistoryIpc()
+  fs.writeFileSync(file, '{broken')
+  assert.equal((await handlers.get('history:get')()).length, 0)
+  const backup = fs.readdirSync(dir).find(name => name.includes('.corrupt-'))
+  assert.ok(backup, '损坏历史必须独立备份')
+  assert.equal(fs.readFileSync(path.join(dir, backup), 'utf8'), '{broken')
+  assert.equal(fs.readFileSync(file, 'utf8'), '[]')
+  fs.writeFileSync(file, '{unrecoverable')
+  for (const method of ['copyFileSync', 'readFileSync']) {
+    loader({ ...mocks, 'node:fs': { ...fs, [method]: () => { throw Object.assign(new Error('拒绝读取或备份'), { code: 'EACCES' }) } } }, {}, sources)('electron/ipc/history.ts').registerHistoryIpc()
+    await assert.rejects(handlers.get('history:delete')(null, 'any'), /拒绝读取或备份/)
+    assert.equal(fs.readFileSync(file, 'utf8'), '{unrecoverable', '无读取或备份权限时不能覆盖为空')
+  }
+}
+
+async function reliabilityChecks() {
+  await treeChecks(); await treeBoundaryChecks(); await realTreeCheck(); await stopFailureCheck(); await historyChecks()
+  const mutations = [
+    ['electron/download/process-tree.ts', 'process.kill(-pid, value)', 'process.kill(pid, value)', treeChecks],
+    ['electron/download/process-tree.ts', "if (await waitGone(1500)) return", 'return', treeChecks],
+    ['electron/download/ytdlp.ts', 'closed && (!isPaused || stopConfirmed)', 'closed', stopFailureCheck],
+    ['electron/download/ytdlp.ts', 'closing++', 'void closing', stopFailureCheck],
+    ['src/stores/download.ts', 'task.filenameTemplate ??= settings.filenameTemplate', 'settings.filenameTemplate', storeChecks],
+    ['src/stores/download.ts', 'if (taskExecutions.has(taskId)) return', 'void taskId', storeChecks],
+    ['electron/utils/atomic-file.ts', 'fs.fsyncSync(descriptor)', 'void descriptor', historyChecks],
+    ['electron/ipc/history.ts', 'fs.copyFileSync(historyFile, `${historyFile}.corrupt-${randomUUID()}.bak`, fs.constants.COPYFILE_EXCL)', 'void historyFile', historyChecks],
+  ]
+  for (const [file, before, after, check] of mutations) {
+    const source = fs.readFileSync(file, 'utf8')
+    assert.ok(source.includes(before), '变异落点必须存在')
+    await assert.rejects(check({ [file]: source.replace(before, after) }), `变异必须被用例拦住：${file}`)
+  }
+  console.log('通过：真实父/孙进程停止、Windows taskkill 边界、停止失败不续传、历史原子写入/损坏备份及 8 个变异反证')
+}
+
 try {
   await directChecks()
   await storeChecks()
   await ipcChecks()
   await preparingChecks()
+  await reliabilityChecks()
   await import('./test-parse-integration.mjs')
 } finally { fs.rmSync(temp, { recursive: true, force: true }) }

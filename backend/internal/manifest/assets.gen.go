@@ -10,6 +10,9 @@ import rt "github.com/yxxbc/downvid/backend/internal/runtime"
 // YtDlpTag yt-dlp nightly 构建的固定 tag（日期版本号）
 const YtDlpTag = "2026.10.10.233141"
 
+// YtDlpZipappSHA256 容器使用的 Python zipapp 校验值，与桌面独立二进制不同。
+const YtDlpZipappSHA256 = "f40b6a9e4c5786360953911cab5d2f87507626b8fb7bfee3f8f1c2e5cf341fae"
+
 // FFmpegTag ffmpeg-static 的固定 tag
 const FFmpegTag = "b6.1.1"
 
@@ -29,7 +32,7 @@ var ytdlpAssets = map[string]asset{
 
 // ffmpegAssets ffmpeg / ffprobe 在各平台的产物与 SHA-256。
 //
-// 选用 ffmpeg-static（ffmpeg 6.0 静态构建）而非 BtbN：体积更小、gzip 单文件便于校验，
+// 选用 ffmpeg-static（静态构建）而非 BtbN：体积更小、gzip 单文件便于校验，
 // 且带 libmp3lame / aac / libx264，覆盖音频转换与音视频合并两种用途。
 var ffmpegAssets = map[string]map[rt.Kind]asset{
 	"darwin/arm64": {

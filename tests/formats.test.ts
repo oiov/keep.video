@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildVideoFormats } from '../electron/parsers/formats'
+import { buildVideoFormats, normalizeFps } from '../electron/parsers/formats'
 
 /**
  * 格式列表生成。
@@ -11,6 +11,25 @@ import { buildVideoFormats } from '../electron/parsers/formats'
  * 因此针对这些回归点各留一个用例。
  */
 describe('buildVideoFormats', () => {
+  it('归一化浮点帧率但保留 24/25/30/60fps 的区别', () => {
+    expect([23.976, 25, 29.969, 29.97, 59.94].map(normalizeFps)).toEqual([24, 25, 30, 30, 60])
+    expect(normalizeFps(NaN)).toBe(0)
+    expect(normalizeFps(0)).toBe(0)
+    expect(normalizeFps(27.5)).toBe(27.5)
+  })
+  it('同分辨率帧率按兼容编码与码率选优，不重复显示标签变体', () => {
+    const formats = buildVideoFormats({ formats: [
+      { format_id: 'av1', height: 1080, fps: 29.97, vcodec: 'av01', tbr: 9000 },
+      { format_id: 'h264-low', height: 1080, fps: 29.969, vcodec: 'avc1', tbr: 1000, format_note: '1080p' },
+      { format_id: 'h264', height: 1080, fps: 30, vcodec: 'avc1', tbr: 2000 },
+      { format_id: 'pal', height: 1080, fps: 25, vcodec: 'avc1' },
+      { format_id: 'film', height: 1080, fps: 24, vcodec: 'avc1' },
+      { format_id: 'high', height: 1080, fps: 59.94, vcodec: 'h264' },
+    ] }, false)
+    expect(formats.map(f => f.formatId)).toEqual(['high', 'h264', 'pal', 'film'])
+    expect(formats[0].quality).toContain('60fps')
+    expect(formats.every(f => !('_codec' in f) && !('_tbr' in f))).toBe(true)
+  })
   it('YouTube 流格式回退保留仅有的 HLS 清晰度', () => {
     const info = { formats: [{ format_id: 'hls', vcodec: 'h264', acodec: 'aac', height: 720, protocol: 'm3u8_native' }] }
     expect(buildVideoFormats(info, true, true)[0].formatId).toBe('hls')

@@ -8,6 +8,7 @@ import path from 'node:path'
 import { APP, GITHUB_API, HTTP_USER_AGENT, RELEASES_URL } from './constants'
 import { broadcast } from './store'
 import { log } from './main'
+import { stopAllDownloads } from './download/ytdlp'
 
 // 更新流程：
 // - Windows(NSIS) / Linux(AppImage、deb、rpm)：electron-updater
@@ -375,13 +376,29 @@ export function downloadUpdate(): Promise<{ success: boolean; error?: string }> 
   return downloading
 }
 
-export function installUpdate(): { success: boolean; error?: string } {
+export async function installUpdate(): Promise<{ success: boolean; error?: string }> {
+  let resumeDownloads: (() => void) | undefined
+  let installError: Error | undefined
+  const failed = (error: Error) => {
+    installError = error
+    resumeDownloads?.()
+    sendStatus({ status: 'error', message: friendlyUpdateError(error) })
+  }
   try {
+    // 安装器可能在 app.quit 之前启动，不能只依赖 before-quit 的下载收尾。
+    resumeDownloads = await stopAllDownloads()
     if (process.platform === 'darwin') installMacUpdate()
     // 静默安装并在完成后自动重启
-    else autoUpdater.quitAndInstall(true, true)
+    else {
+      // electron-updater 的安装失败可能只发 error，不向 quitAndInstall 调用方抛出。
+      autoUpdater.once('error', failed)
+      autoUpdater.quitAndInstall(true, true)
+      if (installError) throw installError
+    }
     return { success: true }
   } catch (error) {
+    autoUpdater.removeListener('error', failed)
+    resumeDownloads?.()
     return { success: false, error: friendlyUpdateError(error) }
   }
 }

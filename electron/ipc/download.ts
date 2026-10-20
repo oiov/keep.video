@@ -6,7 +6,7 @@ import { parseKuaishouWithAPI, parseKuaishouWithPuppeteer } from '../parsers/kua
 import { parseWithYtdlp } from '../parsers/ytdlp'
 import { activeDownloads } from '../store'
 import { downloadDirectFile } from '../download/direct'
-import { runYtdlpDownload, pauseDownload } from '../download/ytdlp'
+import { runYtdlpDownload, pauseDownload, assertDownloadCanStart } from '../download/ytdlp'
 import { sendDownloadProgress, throttledProgress, clearProgressThrottle } from '../download/progress'
 import type { DownloadOptions } from '../download/ytdlp'
 import { detectAria2 } from '../download/aria2'
@@ -49,6 +49,7 @@ export function registerDownloadIpc() {
   })
 
   ipcMain.handle('ytdlp:download', async (_event, options: DownloadOptions) => {
+    assertDownloadCanStart(options.taskId)
     const outputDir = ensureDownloadDir(options.outputDir)
 
     // ===== 直链路径（仅抖音/快手）=====

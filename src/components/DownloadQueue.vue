@@ -68,6 +68,7 @@
 
             <!-- Downloading/Merging -->
             <template v-if="task.status === 'downloading' || task.status === 'merging'">
+              <p v-if="task.error" class="text-[10px] text-error" role="alert">{{ task.error }}</p>
               <div class="flex items-center justify-between text-[10px] text-on-surface-variant font-mono">
                 <span>
                   <span v-if="task.status === 'merging'" class="text-primary">{{ (!isWeb && task.statusMessage) || t('queue.statusMerging') }}</span>
