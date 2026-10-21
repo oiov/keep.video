@@ -8,15 +8,31 @@
 
 .brand-icon{display:block;background:transparent;border-radius:0;width:34px;height:34px}.brand{letter-spacing:-.8px}@media(max-width:760px){.brand-icon{width:28px;height:28px}.brand{font-size:21px}}
 
-/* 浅色画框主视觉：与新素材共同调整对比度。 */
-.homepage .header{color:#243239;border-bottom-color:#28353a19;background:#f6f4ef66}
+/* 视频收进本地文件夹：左侧留白承载文案，右侧保留素材色彩。 */
+.homepage .header{color:#243239;border-bottom-color:#28353a19;background:color-mix(in srgb,var(--paper) 90%,transparent)}
 .homepage .nav-download{border-color:#24323944}.homepage .nav-download:hover{background:#2432390a}
-.hero{background:#f5f3ed;color:#233239}
+.hero{background:#f5f3ed;color:#233239;height:auto;min-height:max(800px,min(950px,100svh))}
+.hero h1,.hero .hero-description,.hero .actions,.hero .hero-platforms,.hero .hero-desktop{max-width:50vw}
 .hero-shade{background:linear-gradient(90deg,#f5f3edf0 0%,#f5f3edb3 33%,#f5f3ed00 68%)}
 .hero .eyebrow{color:#586965}.hero h1 span{color:#a75a3b}.hero-description{color:#52605f}
 .hero .button.secondary{color:#344642;background:#ffffff65;border-color:#34464244}
 .hero-platforms{color:#64716b}.hero-bottom{border-top-color:#263a302c;color:#6b766f}.hero-bottom a{color:#40534a}
-@media(max-width:760px){.hero-art{object-position:63% 50%;opacity:.55}.hero-shade{background:linear-gradient(90deg,#f5f3edf0,#f5f3ed55)}.hero-content{position:relative}.hero h1{font-size:clamp(43px,8.5vw,64px)}}
+@media(max-width:1000px){
+ .homepage .header nav:not(.language-options){display:none}
+ .hero{height:auto;min-height:0;max-height:none}
+ .hero-art{top:auto;bottom:58px;height:clamp(300px,56.25vw,480px);object-position:right bottom;opacity:1;mask-image:linear-gradient(180deg,transparent,black 14%,black 85%,transparent)}
+ .hero-shade{background:none}
+ .hero-content{position:relative;padding:128px 7% calc(clamp(300px,56.25vw,480px) + 76px)}
+ .hero h1,.hero .hero-description,.hero .actions,.hero .hero-platforms,.hero .hero-desktop{max-width:none}
+ .hero h1{font-size:clamp(38px,6vw,64px)}
+}
+@media(max-width:760px){
+ .hero-content{padding-top:114px}
+ .hero .eyebrow{margin-bottom:20px}
+ .hero .hero-description{font-size:15px;line-height:1.75;margin-top:18px}
+ .hero .actions{margin-top:24px}
+ .hero .hero-platforms{margin-top:18px}
+}
 
 .mini-landscape{transform:none}.audio .feature-art{background:url(/assets/audio-frame-light.webp) center/cover}.feature-art .format{background:#ffffff8c;color:#43514c;border-color:#43514c33}.play{display:none}
 

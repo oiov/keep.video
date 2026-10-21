@@ -1,8 +1,8 @@
 [
   {
-    "name": "hero-frame-light",
+    "name": "hero-video-download",
     "size": "2048x1152",
-    "prompt": "Premium minimalist editorial 3D product artwork for a media saving app. Warm off-white seamless studio. Arrangement in RIGHT HALF: three thin translucent frosted-glass rectangular picture frames float at slight angles like saved memories, a luminous apricot-orange glass square between them. One frame contains a soft abstract blue-silver color field, another a warm peach gradient. Brushed aluminum edges, exquisite tactile details, believable refraction, soft daylight, delicate shadows. LEFT HALF empty warm white negative space for dark typography. Airy, bright, calm, architectural still life, contemporary Swiss design, photoreal luxury product rendering. No landscapes, mountains, people, planets, neon, dark atmosphere, text, letters, UI, logos or watermark."
+    "prompt": "生成真正的 16:9 横版网站首屏背景，不是方图加边。主题是把在线视频下载并保存在本地。暖白色无缝摄影棚，左侧一半保持安静、低对比的暖白留白，供网页叠加标题和按钮。右侧是一条连续的电影胶片，自上方优雅弯曲，真实地落入下方一个敞开的橙色文件夹。胶片有细致的深色边缘和齿孔，承载夕阳海浪、山峰、演唱会画面，其中一帧带简洁播放三角。文件夹有清晰的标签页轮廓、精致哑光橙色质感，正面浅压印向下箭头与托盘组成的下载符号。主体集中在横向 56% 至 94% 区域，保留呼吸空间，用柔和接触阴影和橙色反光自然融入背景。高级编辑式产品摄影，真实材质、温暖日光、有纵深的一体化构图，不是悬浮卡片堆叠或玩具图标。不要文字、字母、标志、水印、界面、进度条、电脑、玻璃画框、多余文件夹、紫色或黑色背景。"
   },
   {
     "name": "video-frame-light",

@@ -29,11 +29,11 @@
 
 已复用 nb-gen 的 scripts/nbility-image.py 工作流，当前项目入口是 scripts/generate-website-art.py。通过 NBILITY_IMAGE_API_KEY 读取凭据，不写入代码和素材；图片下载不携带 API 密钥。website/art-direction.json 保存 Keep Video 专属提示词。
 
-2026-10-15 修正服务配置后，专属素材已成功生成。用户不喜欢电影风景方向，因此最终采用浅色玻璃画框与编辑式静物，搭配暖白、杏橙和银色。全部通过 Nbility gpt-image-2-5-sunburst 生成，压缩为本地 WebP。网站已移除之前临时复用的 nb-gen 图片。
+2026-10-15 生成浅色画框与编辑式静物素材，搭配暖白、杏橙和银色，压缩为本地 WebP。2026-10-21 首页改用“视频胶片收进橙色文件夹”的横版构图，直接表达下载与本地保存；采用提供的 1672 × 940 原图，等比例压缩，不拉伸方图。首屏使用独立资源名，避免旧图缓存影响替换。视频与音频功能卡片仍保留原有静物素材。
 
 | 文件 | 用途 |
 | --- | --- |
-| hero-frame-light.webp | 浅色悬浮画框首屏 |
+| hero-video-download.webp | 视频胶片与橙色下载文件夹首屏 |
 | video-frame-light.webp | 画框与播放符号 |
 | audio-frame-light.webp | 浅色耳机静物 |
 
