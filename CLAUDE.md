@@ -371,6 +371,7 @@ and refills the queue.
 
 ### UI conventions
 
+- Avoid unnecessary secondary labels and descriptions. Let the layout do the explaining.
 - **All UI strings go through `t('key')`** (`src/i18n/`); never write a literal. `pnpm lint:i18n`
   scans `src/` and rejects hardcoded Chinese. Three easy traps:
   - `t()` reads a reactive `ref`, so **never call it at module top level** — language switches would
