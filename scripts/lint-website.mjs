@@ -4,10 +4,48 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import vm from 'node:vm'
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const out=path.join(root,'website/dist')
 const build=(env={})=>execFileSync(process.execPath,['scripts/build-website.mjs'],{cwd:root,env:{...process.env,SITE_URL:'',SITE_PREVIEW:'',VERCEL_ENV:'',...env},stdio:'pipe'})
 const files=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(path.join(dir,e.name)):[path.join(dir,e.name)])
+function checkGoogleTag(html, enabled) {
+ const scripts=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].filter(match=>match[1].includes('googletagmanager.com/gtag/js'))
+ assert.equal(scripts.length,enabled?1:0,'GA4 只能在正式域名的非预览页面中注入一次')
+ if(!enabled) {
+  assert(!html.includes('G-88W870PGZH')&&!html.includes('googletagmanager.com'),'非生产页面不得残留 Google 统计代码')
+  return
+ }
+ assert(scripts[0].index>html.indexOf('<head>')&&scripts[0].index<html.indexOf('</head>'),'GA4 必须位于公共 head 中')
+ const execute=(origin,dataLayer)=>{
+  const loaded=[]
+  const window={location:{origin},...(dataLayer?{dataLayer}:{})}
+  const document={createElement:tag=>({tagName:tag}),head:{appendChild:script=>loaded.push(script)}}
+  vm.runInNewContext(scripts[0][1],{window,document},{timeout:1000})
+  return {window,loaded}
+ }
+ for(const existing of [undefined,[]]) {
+  const {window,loaded}=execute('https://keep.video',existing)
+  if(existing) assert.equal(window.dataLayer,existing,'必须保留已有 dataLayer')
+  assert.equal(typeof window.gtag,'function')
+  const events=Array.from(window.dataLayer,entry=>Array.from(entry))
+  assert.equal(events.length,2,'只能初始化一次并配置一次，避免重复浏览量')
+  assert.equal(events[0][0],'js')
+  assert(Number.isFinite(events[0][1].getTime()),'初始化时间必须是有效 Date')
+  assert.deepEqual(events[1],['config','G-88W870PGZH'])
+  assert.deepEqual(loaded,[{tagName:'script',async:true,src:'https://www.googletagmanager.com/gtag/js?id=G-88W870PGZH'}])
+ }
+ for(const origin of ['http://localhost:4179','http://127.0.0.1:4179','https://seo-check.test','https://keep.video.example.org','http://keep.video','null']) {
+  const {window,loaded}=execute(origin)
+  assert.equal(loaded.length,0,'非正式来源不得加载 Google 脚本：'+origin)
+  assert.equal(window.dataLayer,undefined,'非正式来源不得初始化 GA4：'+origin)
+ }
+}
+function checkGooglePages(enabled) {
+ const pages=files(out).filter(file=>file.endsWith('index.html'))
+ assert.equal(pages.length,117)
+ for(const file of pages) checkGoogleTag(fs.readFileSync(file,'utf8'),enabled)
+}
 // 每种语言独立锁定双端定位，不能只验证词条存在或从生产文案生成预期值。
 const modeWords={en:[/online/i,/desktop/i],zh:[/在线/,/桌面/],es:[/online/i,/escritorio/i],'pt-br':[/online/i,/desktop/i],de:[/online/i,/desktop/i],fr:[/en ligne/i,/ordinateur|bureau/i],ja:[/オンライン/,/デスクトップ/],ko:[/온라인/,/데스크톱/],ru:[/онлайн/i,/компьютер/i]}
 // 功能区必须在首屏之后，且四项本机能力只能出现在明确标注的桌面章节。
@@ -86,6 +124,7 @@ try {
   const trackingScripts = html.match(/<script[^>]+src="https:\/\/cloud\.umami\.is\/script\.js"[^>]*><\/script>/g) || []
   assert.equal(trackingScripts.length,1,'每页必须且只能加载一次 Umami')
   assert.equal(trackingScripts[0],'<script defer src="https://cloud.umami.is/script.js" data-website-id="b8ead086-206d-4f73-9b5e-82bf119f3591"></script>')
+  checkGoogleTag(html,false)
   if(route.endsWith('/app/')) {
    assert.equal((html.match(/<script[^>]+src=/g)||[]).length,2)
    assert(html.includes('src="/app/entry.js"'))
@@ -110,17 +149,24 @@ try {
  assert(fs.readFileSync(path.join(out,'robots.txt'),'utf8').includes('Sitemap: https://seo-check.test/sitemap.xml'))
  const social=fs.readFileSync(path.join(out,'assets/social.png'))
  assert.equal(social.readUInt32BE(16),1200);assert.equal(social.readUInt32BE(20),630)
- build({SITE_URL:'https://seo-check.test',VERCEL_ENV:'preview'})
+ build({SITE_URL:'https://keep.video'})
+ checkGooglePages(true)
+ const desktop=fs.readFileSync(path.join(root,'index.html'),'utf8')
+ assert(!/googletagmanager|google-analytics|G-88W870PGZH|\bgtag\b/.test(desktop),'桌面入口不得注入 GA4')
+ build({SITE_URL:'https://keep.video',VERCEL_ENV:'preview'})
+ checkGooglePages(false)
  assert(fs.readFileSync(path.join(out,'index.html'),'utf8').includes('content="noindex,follow"'))
  assert(!fs.readFileSync(path.join(out,'sitemap.xml'),'utf8').includes('<loc>'))
- build({SITE_URL:'https://seo-check.test',SITE_PREVIEW:'1'})
+ build({SITE_URL:'https://keep.video',SITE_PREVIEW:'1'})
+ checkGooglePages(false)
  assert(fs.readFileSync(path.join(out,'index.html'),'utf8').includes('content="noindex,follow"'))
  build()
+ checkGooglePages(false)
  const preview=fs.readFileSync(path.join(out,'index.html'),'utf8')
  assert(preview.includes('content="noindex,follow"'))
  assert(!preview.includes('rel="canonical"'))
  assert(!preview.includes('hreflang="x-default"'))
  assert(!fs.readFileSync(path.join(out,'sitemap.xml'),'utf8').includes('<loc>'))
  for(const invalid of ['http://site.test','https://site.test/path','https://site.test?key=a','https://user:password@site.test','https://example.com'])assert.throws(()=>build({SITE_URL:invalid}))
- console.log('官网校验通过：117 个九语言页面、独立元数据、语言回链、JSON-LD、资源、生产/预览模式与域名校验。')
+ console.log('官网校验通过：117 个九语言页面、独立元数据、语言回链、JSON-LD、资源、生产/预览模式、GA4 来源隔离与域名校验。')
 } finally {execFileSync(process.execPath,['scripts/build-website.mjs'],{cwd:root,stdio:'pipe'})}
