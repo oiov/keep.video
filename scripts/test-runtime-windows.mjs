@@ -14,6 +14,10 @@ if (process.platform !== 'win32') {
 }
 
 const root = process.cwd()
+// 有效工具应与当前清单一致，避免清单升级后测试程序自身被判为过旧。
+const ytdlpVersion = fs.readFileSync(path.join(root, 'backend', 'internal', 'manifest', 'assets.gen.go'), 'utf8')
+  .match(/^const YtDlpTag = "(\d+(?:\.\d+)+)"$/m)?.[1]
+assert.ok(ytdlpVersion, '清单必须声明有效的 yt-dlp 版本')
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'downvid-runtime-'))
 const fixture = path.join(temp, 'fixture.exe')
 const sidecar = path.join(temp, 'downvid-deps.exe')
@@ -35,6 +39,7 @@ function check(name, setup, verify) {
   fs.mkdirSync(home, { recursive: true })
   const env = {
     ...process.env, USERPROFILE: home, PATH: '',
+    DOWNVID_TEST_YTDLP_VERSION: ytdlpVersion,
     LOCALAPPDATA: path.join(home, 'local'),
     ProgramFiles: path.join(home, 'programs'),
     'ProgramFiles(x86)': path.join(home, 'programs-x86'),
@@ -64,6 +69,8 @@ try {
   }, (results, expected) => {
     assert.equal(entry(results, 'yt-dlp').path, expected)
     assert.equal(entry(results, 'yt-dlp').source, 'managed')
+    assert.equal(entry(results, 'yt-dlp').version, ytdlpVersion)
+    assert.equal(entry(results, 'yt-dlp').requiredVersion, ytdlpVersion)
   })
   for (const mode of ['error', 'error-zero', 'version-error']) {
     check(mode, (home, env) => {

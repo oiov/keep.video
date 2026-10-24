@@ -49,7 +49,12 @@ func main() {
 	}
 	name := strings.TrimSuffix(filepath.Base(exe), ".exe")
 	if name == "yt-dlp" {
-		fmt.Println("2026.10.14")
+		version := os.Getenv("DOWNVID_TEST_YTDLP_VERSION")
+		if version == "" {
+			fmt.Fprintln(os.Stderr, "缺少测试所需的 yt-dlp 版本")
+			os.Exit(1)
+		}
+		fmt.Println(version)
 	} else if name == "deno" {
 		fmt.Println("deno 2.3.0")
 	} else if name == "node" {
