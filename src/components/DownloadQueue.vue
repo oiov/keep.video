@@ -71,12 +71,12 @@
               <p v-if="task.error" class="text-[10px] text-error" role="alert">{{ task.error }}</p>
               <div class="flex items-center justify-between text-[10px] text-on-surface-variant font-mono">
                 <span>
-                  <span v-if="task.status === 'merging'" class="text-primary">{{ (!isWeb && task.statusMessage) || t('queue.statusMerging') }}</span>
-                  <span v-else-if="task.speed">{{ task.speed }} - ETA {{ task.eta }}</span>
+                  <span v-if="task.status === 'merging'" class="text-primary">{{ isWeb && task.phase === 'uploading' ? t('web.uploading') : (!isWeb && task.statusMessage) || t('queue.statusMerging') }}</span>
+                  <span v-else-if="task.speed">{{ task.speed }}<template v-if="task.eta"> - ETA {{ task.eta }}</template></span>
                   <span v-else>{{ t('queue.statusDownloading') }}</span>
                 </span>
                 <div class="flex items-center gap-2">
-                  <button class="text-on-surface-variant hover:text-amber transition-colors" @click="pauseTask(task.id)" :title="t('queue.tooltipPause')">
+                  <button class="text-on-surface-variant hover:text-amber transition-colors" @click="pauseTask(task.id)" :title="isWeb ? t('web.cancelTask') : t('queue.tooltipPause')">
                     <MaterialIcon name="pause" :size="14" />
                   </button>
                   <span class="font-bold text-primary">{{ Math.round(task.progress || 0) }}%</span>
@@ -90,9 +90,9 @@
             <!-- Paused -->
             <template v-else-if="task.status === 'paused'">
               <div class="flex items-center justify-between text-[10px] text-on-surface-variant font-mono">
-                <span class="text-amber">{{ t('queue.statusPaused') }}</span>
+                <span class="text-amber">{{ isWeb ? t('web.status.paused') : t('queue.statusPaused') }}</span>
                 <div class="flex items-center gap-2">
-                  <button class="text-on-surface-variant hover:text-primary transition-colors" @click="resumeTask(task)" :title="t('queue.tooltipResume')">
+                  <button class="text-on-surface-variant hover:text-primary transition-colors" @click="resumeTask(task)" :title="isWeb ? t('web.parseAgain') : t('queue.tooltipResume')">
                     <MaterialIcon name="play_arrow" :size="14" />
                   </button>
                   <span class="font-bold text-amber">{{ Math.round(task.progress || 0) }}%</span>
@@ -111,8 +111,8 @@
 
             <!-- Completed -->
             <div v-else-if="task.status === 'completed'" class="flex items-center justify-between mt-1">
-              <span class="text-[10px] text-on-surface-variant font-mono">{{ task.selectedFormat.quality }}</span>
-              <button class="p-1 text-on-surface-variant hover:text-primary transition-colors" :class="{ 'flex items-center gap-1 text-xs font-semibold': isWeb }" @click="openFileLocation(task)" :title="isWeb ? t('web.save') : t('history.openFolder')">
+              <span class="text-[10px] text-on-surface-variant font-mono">{{ isWeb ? t('web.status.completed') : task.selectedFormat.quality }}</span>
+              <button class="p-1 text-on-surface-variant hover:text-primary transition-colors disabled:opacity-40" :disabled="isWeb && expired(task)" :class="{ 'flex items-center gap-1 text-xs font-semibold': isWeb }" @click="openFileLocation(task)" :title="isWeb ? t('web.save') : t('history.openFolder')">
                 <MaterialIcon :name="isWeb ? 'download' : 'folder_open'" :size="16" />
                 <span v-if="isWeb">{{ t('web.save') }}</span>
               </button>
@@ -122,19 +122,22 @@
             <div v-else-if="task.status === 'error'" class="flex items-center justify-between gap-2 mt-1.5">
               <div class="flex items-center gap-1.5 text-[10px] text-error min-w-0">
                 <MaterialIcon name="error" :size="12" class="shrink-0" />
-                <span class="truncate">{{ task.error || t('queue.errorFallback') }}</span>
+                <span :class="isWeb ? 'whitespace-normal' : 'truncate'">{{ task.error || t('queue.errorFallback') }}</span>
               </div>
               <!-- 失败任务此前只能删掉重下（要重新解析、重选格式）。重试直接复用
                    已保存的 url / 格式 / 目录，回到队列里重新排队。 -->
               <button
+                v-if="!isWeb || task.errorCode !== 'authentication'"
                 class="flex items-center gap-1 shrink-0 text-[10px] text-error hover:text-on-error hover:bg-error px-1.5 py-0.5 rounded-sm transition-colors"
                 :title="t('queue.tooltipRetry')"
                 @click="retryTask(task.id)"
               >
                 <MaterialIcon name="refresh" :size="12" />
-                <span>{{ t('common.retry') }}</span>
+                <span>{{ isWeb ? t('web.parseAgain') : t('common.retry') }}</span>
               </button>
+              <a v-else :href="desktopPath" class="text-xs text-primary underline">{{ t('web.desktop') }}</a>
             </div>
+            <span v-if="isWeb && task.expiresAt" class="text-[10px] text-on-surface-variant mt-2">{{ expired(task) ? t('web.expired') : t('web.expiresAt', { time: new Date(task.expiresAt).toLocaleString(locale) }) }}</span>
           </div>
         </div>
       </div>
@@ -157,21 +160,27 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, ref, watch, onUnmounted } from 'vue'
 import MaterialIcon from './icons/MaterialIcon.vue'
 import { useDownloadStore } from '../stores/download'
 import { useErrorModal } from '../composables/useErrorModal'
-import { t } from '../i18n'
+import { t, locale } from '../i18n'
 import { isWeb } from '../runtime-mode'
+import { webLocale } from '../../shared/web-routes'
 import { abbreviatePath, ensureHomeDir } from '../composables/usePathDisplay'
 import { updateSettings } from '../stores/settings'
 import type { DownloadTask } from '../types'
 
 const store = useDownloadStore()
 const { showError } = useErrorModal()
+const desktopPath = isWeb ? '/' + (webLocale(location.pathname)?.prefix ? webLocale(location.pathname)!.prefix + '/' : '') + 'download/' : ''
+const now = ref(Date.now())
+const clock = isWeb ? setInterval(() => { now.value = Date.now() }, 1000) : undefined
+onUnmounted(() => clearInterval(clock))
+const expired = (task: DownloadTask) => !!task.expiresAt && Date.parse(task.expiresAt) <= now.value
 
 // 预取主目录，让路径显示成 ~/Downloads/Keep Video 而不是暴露用户名
-void ensureHomeDir()
+if (!isWeb) void ensureHomeDir()
 
 const activeTaskCount = computed(() => store.activeTaskCount)
 const queuedTaskCount = computed(() => store.queuedTaskCount)
@@ -185,6 +194,7 @@ function formatBytes(bytes: number): string {
 }
 
 async function loadDiskSpace() {
+  if (isWeb) return
   try {
     const result = await window.electronAPI.app.getDiskSpace(store.downloadDir)
     if (result && result.total > 0) {
@@ -226,11 +236,24 @@ async function selectDownloadDir() {
   }
 }
 
-function clearCompleted() {
+async function clearCompleted() {
+  if (isWeb) {
+    for (const task of [...store.downloadTasks]) if (task.status === 'completed') await removeTask(task.id)
+    return
+  }
   store.clearCompletedTasks()
 }
 
-function removeTask(id: string) {
+async function removeTask(id: string) {
+  if (isWeb) {
+    const task = store.downloadTasks.find(item => item.id === id)
+    if (!task?.serverId) { store.removeTask(id); return }
+    try {
+      if (['pending', 'downloading', 'merging'].includes(task.status)) await window.electronAPI.ytdlp.pauseDownload(id)
+      await window.electronAPI.history.delete(task.serverId)
+    } catch (error: any) { showError(error.message || t('web.requestFailed')) }
+    return
+  }
   store.removeTask(id)
 }
 
@@ -239,10 +262,12 @@ function pauseTask(id: string) {
 }
 
 function resumeTask(task: DownloadTask) {
+  if (isWeb) { store.url = task.url; store.videoInfo = null; document.getElementById('video-url')?.focus(); return }
   store.resumeTask(task)
 }
 
 function retryTask(id: string) {
+  if (isWeb) { const task = store.downloadTasks.find(item => item.id === id); if (task) resumeTask(task); return }
   store.retryTask(id)
 }
 

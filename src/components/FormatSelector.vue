@@ -1,6 +1,7 @@
 <template>
   <div class="flex flex-col gap-4">
     <h3 class="font-headline text-sm font-bold text-on-surface border-b border-outline-variant/20 pb-2">{{ t('formats.title') }}</h3>
+    <p v-if="isWeb" class="text-xs text-on-surface-variant">{{ t('web.formatHint') }}</p>
 
     <!-- Video Info Card -->
     <VideoInfoCard :video-info="videoInfo" :selected-format="selectedFormat" />
@@ -12,6 +13,8 @@
         <label
           v-for="format in videoInfo.formats"
           :key="format.formatId"
+          :tabindex="isWeb ? 0 : undefined" :role="isWeb ? 'radio' : undefined" :aria-checked="isWeb ? selectedFormat?.formatId === format.formatId : undefined"
+          @keydown.enter.prevent="$emit('selectVideo', format)" @keydown.space.prevent="$emit('selectVideo', format)"
           class="flex items-center justify-between p-2.5 rounded-md cursor-pointer transition-colors"
           :class="selectedFormat?.formatId === format.formatId ? 'bg-surface-container-highest/50 border border-primary/30 hover:bg-primary-container/20' : 'bg-surface-container-lowest border border-outline-variant/20 hover:border-primary/40'"
           @click="$emit('selectVideo', format)"
@@ -35,6 +38,8 @@
         <label
           v-for="format in videoInfo.audioFormats"
           :key="format.formatId"
+          :tabindex="isWeb ? 0 : undefined" :role="isWeb ? 'radio' : undefined" :aria-checked="isWeb ? selectedAudioFormat?.formatId === format.formatId : undefined"
+          @keydown.enter.prevent="$emit('selectAudio', format)" @keydown.space.prevent="$emit('selectAudio', format)"
           class="flex items-center justify-between p-2.5 rounded-md cursor-pointer transition-colors"
           :class="selectedAudioFormat?.formatId === format.formatId ? 'bg-surface-container-highest/50 border border-primary/30' : 'bg-surface-container-lowest border border-outline-variant/20 hover:border-primary/40'"
           @click="$emit('selectAudio', format)"
@@ -55,6 +60,8 @@
         <label
           v-for="track in videoInfo.audioTracks"
           :key="track.id"
+          :tabindex="isWeb ? 0 : undefined" :role="isWeb ? 'radio' : undefined" :aria-checked="isWeb ? selectedAudioTrack?.id === track.id : undefined"
+          @keydown.enter.prevent="$emit('selectTrack', track)" @keydown.space.prevent="$emit('selectTrack', track)"
           class="flex items-center justify-between p-2.5 rounded-md cursor-pointer transition-colors"
           :class="selectedAudioTrack?.id === track.id ? 'bg-surface-container-highest/50 border border-primary/30' : 'bg-surface-container-lowest border border-outline-variant/20 hover:border-primary/40'"
           @click="$emit('selectTrack', track)"
@@ -75,6 +82,8 @@
         <label
           v-for="sub in videoInfo.subtitles"
           :key="sub.language"
+          :tabindex="isWeb ? 0 : undefined" :role="isWeb ? 'checkbox' : undefined" :aria-checked="isWeb ? selectedSubtitles.includes(sub.language) : undefined"
+          @keydown.enter.prevent="$emit('selectSubtitle', sub.language)" @keydown.space.prevent="$emit('selectSubtitle', sub.language)"
           class="flex items-center gap-2 px-3 py-2 rounded-md cursor-pointer transition-colors"
           :class="selectedSubtitles.includes(sub.language) ? 'bg-surface-container-highest/50 border border-primary/30' : 'bg-surface-container-lowest border border-outline-variant/20 hover:border-primary/40'"
           @click="$emit('selectSubtitle', sub.language)"
@@ -102,6 +111,7 @@
 import MaterialIcon from './icons/MaterialIcon.vue'
 import VideoInfoCard from './VideoInfoCard.vue'
 import { t } from '../i18n'
+import { isWeb } from '../runtime-mode'
 import type { VideoInfo, VideoFormat, AudioFormat, AudioTrack } from '../types'
 
 defineProps<{

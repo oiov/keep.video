@@ -1,4 +1,6 @@
 import { t } from '../../src/i18n'
+import { webErrorKey } from '../../shared/web-errors'
+import { browserContext } from './analytics'
 
 /**
  * Web 环境的 window.electronAPI 适配器。
@@ -20,9 +22,24 @@ export function installWebBridge() {
   let nextId = 1
   let socket: WebSocket | null = null
   let connecting: Promise<WebSocket> | null = null
+  let retryTimer: ReturnType<typeof setTimeout> | undefined
+  let retryDelay = 1000
+  let initialized = false
+  const localize = (value: any): any => Array.isArray(value) ? value.map(localize) : value?.errorCode ? { ...value, error: t(webErrorKey(value.errorCode)) } : value
+  const publish = (name: string, data: any) => { for (const cb of subscribers.get(name) || []) cb(localize(data)) }
+  const rpcError = (code?: string) => Object.assign(new Error(t(webErrorKey(code))), { code })
+
+  function reconnect() {
+    if (retryTimer) return
+    retryTimer = setTimeout(() => {
+      retryTimer = undefined
+      void connect().catch(() => reconnect())
+    }, retryDelay)
+    retryDelay = Math.min(retryDelay * 2, 15000)
+  }
 
   function connect(): Promise<WebSocket> {
-    if (socket && socket.readyState <= WebSocket.OPEN) return Promise.resolve(socket)
+    if (socket?.readyState === WebSocket.OPEN) return Promise.resolve(socket)
     if (connecting) return connecting
     connecting = new Promise((resolve, reject) => {
       const ws = new WebSocket(url)
@@ -34,33 +51,40 @@ export function installWebBridge() {
         clearTimeout(failTimer)
         socket = ws
         connecting = null
+        retryDelay = 1000
+        clearTimeout(retryTimer); retryTimer = undefined
         resolve(ws)
+        if (initialized) void invoke('history:get').then(data => publish('history:updated', data)).catch(() => {})
+        initialized = true
+        window.dispatchEvent(new CustomEvent('keep:connection', { detail: 'connected' }))
       }
       ws.onerror = () => {
         clearTimeout(failTimer)
-        connecting = null
         reject(new Error(t('web.connectFailed')))
       }
       ws.onclose = () => {
+        clearTimeout(failTimer)
+        reject(new Error(t('web.connectFailed')))
         socket = null
         connecting = null
-        for (const [, entry] of pending) entry.reject(new Error(t('web.disconnected')))
+        for (const [, entry] of pending) entry.reject(Object.assign(new Error(t('web.disconnected')), { code: 'disconnected' }))
         pending.clear()
+        window.dispatchEvent(new CustomEvent('keep:connection', { detail: 'disconnected' }))
+        reconnect()
       }
       ws.onmessage = (ev) => {
         let message: any
         try { message = JSON.parse(String(ev.data)) } catch { return }
         if (message.event !== undefined) {
-          const set = subscribers.get(message.event)
-          if (set) for (const cb of set) cb(message.data?.error ? { ...message.data, error: t('web.requestFailed') } : message.data)
+          publish(message.event, message.data)
           return
         }
         if (message.id !== undefined) {
           const entry = pending.get(message.id)
           if (!entry) return
           pending.delete(message.id)
-          if (message.error) entry.reject(new Error(t('web.requestFailed')))
-          else entry.resolve(message.result)
+          if (message.error) entry.reject(rpcError(message.errorCode))
+          else entry.resolve(localize(message.result))
         }
       }
     })
@@ -71,8 +95,30 @@ export function installWebBridge() {
     return connect().then(ws => new Promise((resolve, reject) => {
       const id = nextId++
       pending.set(id, { resolve, reject })
-      ws.send(JSON.stringify({ id, channel, args }))
+      try { ws.send(JSON.stringify({ id, channel, args, context: browserContext(channel === 'ytdlp:parse' ? args[0] as string : undefined) })) }
+      catch { pending.delete(id); reject(Object.assign(new Error(t('web.disconnected')), { code: 'disconnected' })) }
     }))
+  }
+
+  function track(name: string, jobId?: string) {
+    // 统计不建立额外连接、不等待回包、不重试；断网时直接丢弃。
+    try {
+      if (socket?.readyState !== WebSocket.OPEN) return
+      socket.send(JSON.stringify({ id: nextId++, channel: 'analytics:event', args: [{ name, id: crypto.randomUUID(), jobId }], context: browserContext() }))
+    } catch { /* 浏览器统计不可用不能影响交互。 */ }
+  }
+  window.addEventListener('keep:analytics', event => {
+    const name = (event as CustomEvent).detail?.name
+    if (name === 'tool_view') void connect().then(() => track(name)).catch(() => {})
+    else if (name === 'example_selected') track(name)
+  })
+  async function saveFile(filePath: string) {
+    if (!/^\/api\/files\/[a-zA-Z0-9-]+$/.test(filePath)) return { success: false, error: t('web.requestFailed') }
+    track('file_save_clicked', filePath.split('/').pop())
+    const response = await fetch(filePath, { method: 'HEAD', cache: 'no-store' }).catch(() => null)
+    if (!response?.ok) return { success: false, error: t(response?.status === 404 ? 'web.expired' : 'web.requestFailed') }
+    const link = document.createElement('a'); link.href = filePath; link.download = ''; link.click()
+    return { success: true }
   }
 
   function subscribe(channel: string, callback: (data: any) => void): () => void {
@@ -88,9 +134,7 @@ export function installWebBridge() {
 
   window.electronAPI = {
     clipboard: {
-      readText: async () => {
-        try { return await navigator.clipboard.readText() } catch { return '' }
-      },
+      readText: async () => navigator.clipboard.readText(),
       writeText: async (text: string) => { await navigator.clipboard.writeText(text) },
     },
 
@@ -114,8 +158,8 @@ export function installWebBridge() {
     },
 
     shell: {
-      openPath: async (filePath: string) => { if (filePath.startsWith('/api/files/')) { const link = document.createElement('a'); link.href = filePath; link.download = ''; link.click() }; return { success: true } },
-      showItemInFolder: async (filePath: string) => { if (filePath.startsWith('/api/files/')) { const link = document.createElement('a'); link.href = filePath; link.download = ''; link.click() }; return { success: true } },
+      openPath: saveFile,
+      showItemInFolder: saveFile,
       openExternal: (url: string) => { window.open(url, '_blank', 'noopener'); return Promise.resolve() },
     },
 

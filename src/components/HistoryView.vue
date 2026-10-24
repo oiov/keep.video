@@ -56,7 +56,9 @@
                 <p class="text-xs text-on-surface-variant mt-1 font-mono">{{ item.url }}</p>
               </div>
               <div class="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-on-surface-variant">
-                <span v-if="isWeb && item.status" class="text-primary">{{ webStatus(item.status) }} {{ item.status === 'downloading' ? Math.round(item.progress || 0) + '%' : '' }}</span>
+                <span v-if="isWeb && item.status" class="text-primary">{{ item.phase === 'uploading' && item.status === 'downloading' ? t('web.uploading') : webStatus(item.status) }} {{ item.status === 'downloading' ? Math.round(item.progress || 0) + '%' : '' }}</span>
+                <span v-if="isWeb && item.expiresAt">{{ expired(item) ? t('web.expired') : t('web.expiresAt', { time: formatDate(item.expiresAt) }) }}</span>
+                <span v-if="isWeb && item.error" class="text-error">{{ item.error }}</span>
                 <span v-if="!isWeb && item.fileExists === false" class="text-error">{{ t('history.fileMissing') }}</span>
                 <span class="flex items-center gap-1">
                   <!-- 注意：`high_definition` 不是有效的 Symbols 名（会渲染成文字），正确名是 `hd` -->
@@ -75,7 +77,7 @@
               <button 
                 class="p-2 text-on-surface-variant hover:text-primary hover:bg-primary-container/20 rounded-md transition-colors"
                 :title="item.fileExists === false ? t('history.fileMissing') : isWeb ? t('web.save') : t('history.openFile')"
-                :disabled="item.fileExists === false"
+                :disabled="item.fileExists === false || (isWeb && expired(item))"
                 :class="{ 'opacity-40 cursor-not-allowed': item.fileExists === false }"
                 @click="openFile(item)"
               >
@@ -109,6 +111,12 @@ import MaterialIcon from './icons/MaterialIcon.vue'
 import { t, locale } from '../i18n'
 import { isWeb } from '../runtime-mode'
 import type { HistoryRecord } from '../types'
+import { useErrorModal } from '../composables/useErrorModal'
+const { showError } = useErrorModal()
+const now = ref(Date.now())
+const clock = isWeb ? setInterval(() => { now.value = Date.now() }, 1000) : undefined
+onUnmounted(() => clearInterval(clock))
+const expired = (item: HistoryRecord) => !!item.expiresAt && Date.parse(item.expiresAt) <= now.value
 
 const webStatus = (status: string) => ({ pending: t('web.status.pending'), downloading: t('web.status.downloading'), completed: t('web.status.completed'), error: t('web.status.error'), paused: t('web.status.paused') }[status] || status)
 
@@ -141,8 +149,9 @@ async function deleteHistory(id: string) {
   try {
     await window.electronAPI.history.delete(id)
     history.value = history.value.filter(h => h.id !== id)
-  } catch (e) {
-    console.error('Failed to delete history:', e)
+  } catch (e: any) {
+    if (isWeb) showError(e.message || t('web.requestFailed'))
+    else console.error('Failed to delete history:', e)
   }
 }
 
@@ -155,13 +164,15 @@ async function clearAllHistory() {
     }
     history.value = []
   } catch (e) {
-    console.error('Failed to clear history:', e)
+    if (isWeb) showError(t('web.requestFailed'))
+    else console.error('Failed to clear history:', e)
   }
 }
 
 async function openFile(item: HistoryRecord) {
-  if (item.fileExists === false) return
-  await window.electronAPI.shell.openPath(item.filePath)
+  if (item.fileExists === false || (isWeb && expired(item))) return
+  const result = await window.electronAPI.shell.openPath(item.filePath)
+  if (isWeb && !result?.success) showError(result?.error || t('web.requestFailed'))
 }
 
 async function openFolder(item: HistoryRecord) {

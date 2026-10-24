@@ -73,7 +73,8 @@
     "website:preview": "node scripts/serve-website.mjs",
     "build:web": "pnpm website:build && vite build --config docker/web/vite.config.ts",
     "test:web": "node scripts/test-web-server.mjs && node --import tsx scripts/test-web-storage.mjs",
-    "start:web": "tsx --tsconfig docker/server/tsconfig.json docker/server/index.ts"
+    "start:web": "tsx --tsconfig docker/server/tsconfig.json docker/server/index.ts",
+    "analytics:report": "tsx scripts/analytics-report.ts"
   },
   "dependencies": {
     "@material-symbols/font-400": "^0.48.0",

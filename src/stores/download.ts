@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { videoFilenameTemplate } from '../../shared/download-filename'
-import type { VideoInfo, VideoFormat, DownloadTask, AudioFormat, AudioTrack } from '../types'
+import type { VideoInfo, VideoFormat, DownloadTask, AudioFormat, AudioTrack, HistoryRecord } from '../types'
+import { isWeb } from '../runtime-mode'
 import { useDepsStore, readMissingKinds, stripDepMarkers } from './deps'
 import {
   shouldIgnoreProgress,
@@ -87,6 +88,30 @@ export const useDownloadStore = defineStore('download', () => {
   const pauseRequests = new Map<string, Promise<boolean>>()
   const taskExecutions = new Map<string, Promise<void>>()
   const taskProgressCleanups = new Map<string, () => void>()
+
+  function syncWebTasks(records: HistoryRecord[]) {
+    if (!isWeb) return
+    const ids = new Set(records.map(record => record.id))
+    downloadTasks.value = downloadTasks.value.filter(task => !task.serverId || ids.has(task.serverId))
+    const clientIds = new Set(records.map(record => record.clientId))
+    for (const task of downloadTasks.value) {
+      if (task.webSubmitted && !task.serverId && !taskExecutions.has(task.id) && !clientIds.has(task.id)) {
+        task.status = 'error'; task.error = t('web.error.parse-required')
+      }
+    }
+    for (const record of records) {
+      const id = record.clientId || record.id
+      let task = downloadTasks.value.find(item => item.id === id)
+      if (!task) {
+        task = { id, url: record.url, videoInfo: { id: record.id, title: record.title, thumbnail: '', webpageUrl: record.url, formats: [] },
+          selectedFormat: { formatId: '', quality: record.quality, ext: record.format }, outputDir: '', status: 'pending', progress: 0, createdAt: record.createdAt }
+        downloadTasks.value.push(task)
+      }
+      Object.assign(task, { serverId: record.id, webSubmitted: true, status: record.phase === 'merging' || record.phase === 'uploading' ? record.status === 'downloading' ? 'merging' : record.status : record.status,
+        phase: record.phase, error: record.error, errorCode: record.errorCode, progress: record.progress || 0, filePath: record.filePath, expiresAt: record.expiresAt })
+    }
+    downloadTasks.value.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  }
 
   // Computed
   const isYouTubeUrl = computed(() => {
@@ -274,6 +299,11 @@ export const useDownloadStore = defineStore('download', () => {
    * 同一个任务不会被启动两次。
    */
   function pumpQueue() {
+    // 网页只提交尚未发送的任务，真正并发由服务器统一控制；恢复的任务不再提交。
+    if (isWeb) {
+      for (const task of downloadTasks.value) if (task.status === 'pending' && !task.webSubmitted) processDownload(task)
+      return
+    }
     // 尚未收尾的暂停任务也占槽，避免旧进程仍写文件时突破并发上限。
     const scheduling = downloadTasks.value.map(task => taskExecutions.has(task.id)
       ? { ...task, status: 'downloading' as const } : task)
@@ -288,7 +318,8 @@ export const useDownloadStore = defineStore('download', () => {
     if (taskIndex === -1) return
     if (downloadTasks.value[taskIndex].status === 'downloading' || downloadTasks.value[taskIndex].status === 'merging') return
 
-    downloadTasks.value[taskIndex].status = 'downloading'
+    downloadTasks.value[taskIndex].status = isWeb ? 'pending' : 'downloading'
+    if (isWeb) downloadTasks.value[taskIndex].webSubmitted = true
 
     if (taskProgressCleanups.has(task.id)) {
       taskProgressCleanups.get(task.id)!()
@@ -382,6 +413,10 @@ export const useDownloadStore = defineStore('download', () => {
       if (finalIdx !== -1) {
         downloadTasks.value[finalIdx].status = 'completed'
         downloadTasks.value[finalIdx].filePath = result?.filePath
+        if (isWeb) {
+          downloadTasks.value[finalIdx].serverId = result?.id
+          downloadTasks.value[finalIdx].expiresAt = result?.expiresAt
+        }
         downloadTasks.value[finalIdx].progress = 100
       }
 
@@ -401,6 +436,11 @@ export const useDownloadStore = defineStore('download', () => {
         console.error('Failed to add history record:', historyErr)
       }
     } catch (e: any) {
+      if (isWeb) {
+        const current = downloadTasks.value.find(item => item.id === task.id)
+        if (current && e.code !== 'disconnected') { current.status = 'error'; current.error = e.message; current.errorCode = e.code }
+        return
+      }
       // 主进程可能附带 Cookie 读取失败的解决建议：分类只看错误本身，建议保留展示
       const [rawError, hint] = (e.message || t('queue.errorFallback')).split('\n\n提示：')
       // 解析/下载因缺少 yt-dlp、ffmpeg 失败时，弹出「一键下载」引导
@@ -448,7 +488,7 @@ export const useDownloadStore = defineStore('download', () => {
     isDownloading.value = true
     // 只更新新任务目录；暂停任务继续使用原目录，不能丢失已有片段。
     downloadDir.value = readSettings().downloadDir || downloadDir.value
-    const taskId = Date.now().toString()
+    const taskId = isWeb ? crypto.randomUUID() : Date.now().toString()
 
     if (downloadMode.value === 'subtitle') {
       const task: DownloadTask = {
@@ -504,5 +544,6 @@ export const useDownloadStore = defineStore('download', () => {
     selectVideoFormat, selectAudioFormat, selectAudioTrack, selectSubtitle,
     removeTask, clearCompletedTasks, pauseTask, resumeTask, retryTask, startDownload,
     sanitizeFilename,
+    syncWebTasks,
   }
 })

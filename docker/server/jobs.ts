@@ -9,16 +9,23 @@ import { wsEventBus } from './electron-shim'
 import { publicTarget } from './security'
 import { createStorage, type StoredFile } from './storage'
 import type { Config } from './config'
+import type { Analytics } from './analytics'
+import { cleanContext, EXAMPLE_URL, platformCategory, type AnalyticsContext } from '../../shared/web-analytics'
+import { WebError, webErrorCode } from '../../shared/web-errors'
 
 export interface Job {
   id: string; owner: string; clientId: string; url: string; title: string; createdAt: number
   status: 'pending' | 'downloading' | 'completed' | 'error' | 'paused'
   progress: number; file?: StoredFile; localPath?: string; error?: string; options?: any
+  errorCode?: string; phase?: 'queued' | 'downloading' | 'merging' | 'uploading'
+  analytics?: AnalyticsContext & { entityId: string; parseId?: string }
+  startedAt?: number; downloadEndedAt?: number; finishedAt?: number
+  queueMs?: number; downloadMs?: number; uploadMs?: number
 }
 
 export class Jobs extends EventEmitter {
   jobs = new Map<string, Job>()
-  parsed = new Map<string, { time: number; info: any }>()
+  parsed = new Map<string, { time: number; info: any; context?: AnalyticsContext; parseId?: string }>()
   running = 0
   parsing = 0
   closing = false
@@ -28,7 +35,7 @@ export class Jobs extends EventEmitter {
   private pauseRequests = new Map<string, Promise<void>>()
   private parseWaiters = new Set<() => void>()
   storage: ReturnType<typeof createStorage>
-  constructor(public config: Config, public proxy: string) {
+  constructor(public config: Config, public proxy: string, private analytics?: Analytics) {
     super()
     this.setMaxListeners(100)
     this.storage = createStorage(config)
@@ -37,15 +44,26 @@ export class Jobs extends EventEmitter {
     try {
       for (const job of JSON.parse(fs.readFileSync(this.manifest(), 'utf8'))) {
         if (job.file && job.file.driver !== config.storage) throw new Error('请先清理旧存储任务再切换存储驱动')
-        if (job.status === 'pending' || job.status === 'downloading') { job.status = 'error'; job.error = '服务已重启，请重新解析下载' }
+        if (job.status === 'pending' || job.status === 'downloading') {
+          job.status = 'error'; job.error = '服务已重启，请重新解析下载'; job.errorCode = 'interrupted'
+          job.finishedAt = Date.now()
+          this.recordFinished(job)
+        }
         this.jobs.set(job.id, job)
       }
     } catch (error) { if (fs.existsSync(this.manifest())) throw error }
+    this.persist()
     wsEventBus.on('download:progress', data => {
       const job = this.jobs.get(data.taskId)
       if (!job || job.status !== 'downloading') return
+      const phase = data.status === 'merging' || data.status === 'completed' ? 'merging' : 'downloading'
+      if (job.phase !== phase) {
+        job.phase = phase
+        if (job.analytics) this.analytics?.record('job_stage', job.analytics, { entityId: job.analytics.entityId, phase })
+        this.emit('updated', job.owner)
+      }
       job.progress = Math.min(98, data.percent || 0)
-      this.emit('progress', job.owner, { ...data, taskId: job.clientId, status: data.status === 'completed' ? 'merging' : data.status, percent: job.progress })
+      this.emit('progress', job.owner, { taskId: job.clientId, status: phase, percent: job.progress, speed: data.speed, eta: data.eta, totalSize: data.totalSize })
     })
   }
   manifest() { return path.join(this.config.dataDir, 'web-jobs.json') }
@@ -55,45 +73,64 @@ export class Jobs extends EventEmitter {
     fs.renameSync(file + '.part', file)
   }
   view(job: Job) {
-    return { id: job.id, clientId: job.clientId, title: job.title, url: job.url, status: job.status, progress: job.progress, error: job.error, createdAt: new Date(job.createdAt).toISOString(), filePath: job.file ? '/api/files/' + job.id : undefined, fileExists: !!job.file, quality: job.file?.name || '', format: job.file ? path.extname(job.file.name).slice(1) : '' }
+    const expiresAt = job.createdAt + this.config.ttl
+    const fileExists = !!job.file && Date.now() < expiresAt
+    return { id: job.id, clientId: job.clientId, title: job.title, url: job.url, status: job.status, phase: job.phase, progress: job.progress, errorCode: job.errorCode, createdAt: new Date(job.createdAt).toISOString(), expiresAt: new Date(expiresAt).toISOString(), filePath: fileExists ? '/api/files/' + job.id : undefined, fileExists, quality: job.file?.name || '', format: job.file ? path.extname(job.file.name).slice(1) : '' }
   }
   list(owner: string) { return [...this.jobs.values()].filter(j => j.owner === owner).map(j => this.view(j)).reverse() }
-  async parse(owner: string, raw: unknown) {
-    if (this.closing) throw new Error('服务正在停止')
-    if (typeof raw !== 'string' || raw.length > 4096) throw new Error('链接无效')
-    if (this.parsing >= this.config.concurrency) throw new Error('解析繁忙，请稍后重试')
+  async parse(owner: string, raw: unknown, metadata: Partial<AnalyticsContext> = {}) {
+    const context = cleanContext({ ...metadata, platform: platformCategory(raw), input: raw === EXAMPLE_URL ? 'example' : metadata.input === 'user_input' ? 'user_input' : 'unknown' })
+    const reject = (code: string, message: string): never => {
+      this.analytics?.record('parse_rejected', context, { result: 'rejected', code })
+      throw new WebError(code, message)
+    }
+    if (this.closing) reject('stopping', '服务正在停止')
+    if (typeof raw !== 'string' || raw.length > 4096) reject('invalid-url', '链接无效')
+    if (this.parsing >= this.config.concurrency) reject('busy', '解析繁忙，请稍后重试')
+    const input = raw as string
     this.parsing++
+    const parseId = randomUUID(), startedAt = Date.now()
+    let accepted = false
     try {
-      await publicTarget(raw)
-      const info = await parseWithYtdlp(raw, '', this.proxy)
-      const key = owner + ':' + raw
+      try { await publicTarget(input) } catch { reject('invalid-url', '链接无效或不是公网地址') }
+      accepted = true
+      this.analytics?.record('parse_requested', context, { entityId: parseId })
+      const info = await parseWithYtdlp(input, '', this.proxy)
+      const key = owner + ':' + input
       this.parsed.delete(key)
-      this.parsed.set(key, { time: Date.now(), info })
+      this.parsed.set(key, { time: Date.now(), info, context, parseId })
       while (this.parsed.size > PARSE_CACHE_LIMIT) this.parsed.delete(this.parsed.keys().next().value!)
       const { cacheFile, ...publicInfo } = info
+      this.analytics?.record('parse_finished', context, { entityId: parseId, result: 'success', durationMs: Date.now() - startedAt })
       return publicInfo
+    } catch (error) {
+      if (accepted) this.analytics?.record('parse_finished', context, { entityId: parseId, result: 'error', code: webErrorCode(error), durationMs: Date.now() - startedAt })
+      throw error
     } finally {
       this.parsing--
       if (!this.parsing) { for (const resolve of this.parseWaiters) resolve(); this.parseWaiters.clear() }
     }
   }
   submit(owner: string, raw: any) {
-    if (this.closing) throw new Error('服务正在停止')
-    const parsed = this.parsed.get(owner + ':' + raw?.url)
-    if (!parsed || Date.now() - parsed.time > 20 * 60000) throw new Error('请先重新解析链接')
-    const existing = [...this.jobs.values()].find(j => j.owner === owner && j.clientId === raw.taskId && (this.executions.has(j.id) || j.status !== 'error' && j.status !== 'paused'))
+    if (this.closing) throw new WebError('stopping', '服务正在停止')
+    if (typeof raw?.taskId !== 'string' || raw.taskId.length > 120) throw new WebError('invalid-url', '任务标识无效')
+    // 重连重放即使发生在解析缓存失效后，也只返回原任务；重试必须使用新标识。
+    const existing = [...this.jobs.values()].find(j => j.owner === owner && j.clientId === raw.taskId)
     if (existing) return existing
-    if ([...this.jobs.values()].filter(j => ['pending', 'downloading'].includes(j.status)).length >= this.config.maxQueued || [...this.jobs.values()].filter(j => j.owner === owner).length >= this.config.maxSessionTasks) throw new Error('任务数量达到上限，请删除旧任务后重试')
-    if (typeof raw.taskId !== 'string' || raw.taskId.length > 120) throw new Error('任务标识无效')
+    const parsed = this.parsed.get(owner + ':' + raw?.url)
+    if (!parsed || Date.now() - parsed.time > 20 * 60000) throw new WebError('parse-required', '请先重新解析链接')
+    if ([...this.jobs.values()].filter(j => ['pending', 'downloading'].includes(j.status)).length >= this.config.maxQueued || [...this.jobs.values()].filter(j => j.owner === owner).length >= this.config.maxSessionTasks) throw new WebError('queue-full', '任务数量达到上限，请删除旧任务后重试')
     const mode = ['video', 'audio', 'subtitle'].includes(raw.downloadMode) ? raw.downloadMode : 'video'
     const formats = [...parsed.info.formats, ...(parsed.info.audioFormats || [])]
     const format = formats.find((f: any) => f.formatId === raw.formatId)
-    if (!format && mode !== 'subtitle') throw new Error('请选择解析结果中的格式')
+    if (!format && mode !== 'subtitle') throw new WebError('format-unavailable', '请选择解析结果中的格式')
     const id = randomUUID()
-    const job: Job = { id, owner, clientId: raw.taskId, url: raw.url, title: parsed.info.title, createdAt: Date.now(), status: 'pending', progress: 0 }
+    const job: Job = { id, owner, clientId: raw.taskId, url: raw.url, title: parsed.info.title, createdAt: Date.now(), status: 'pending', phase: 'queued', progress: 0,
+      analytics: { ...cleanContext(parsed.context), entityId: randomUUID(), parseId: parsed.parseId } }
     job.options = { url: job.url, taskId: id, outputDir: path.join(this.config.workDir, id), formatId: format?.formatId || 'best', hasAudio: format?.hasAudio, downloadMode: mode, filenameTemplate: '%(title).120B.%(ext)s', proxy: this.proxy, cookiesFile: '', cacheFile: parsed.info.cacheFile, acceleration: { enabled: false }, subtitles: (parsed.info.subtitles || []).filter((s: any) => Array.isArray(raw.subtitles) && raw.subtitles.includes(s.language)).map((s: any) => s.language), audioTrack: (parsed.info.audioTracks || []).find((a: any) => a.id === raw.audioTrack?.id) }
     this.jobs.set(id, job)
     try { this.persist() } catch (error) { this.jobs.delete(id); throw error }
+    this.analytics?.record('job_created', job.analytics, { entityId: job.analytics!.entityId, parseId: parsed.parseId, phase: 'queued' }, job.analytics!.entityId + ':created')
     this.releases.set(id, retainInfoFile(job.options.cacheFile))
     this.emit('updated', owner); this.pump()
     return job
@@ -103,8 +140,14 @@ export class Jobs extends EventEmitter {
     for (const job of this.jobs.values()) {
       if (this.running >= this.config.concurrency) break
       if (job.status !== 'pending') continue
-      this.running++; job.status = 'downloading'
-      const execution = this.run(job).catch(() => { job.status = 'error'; job.error = '任务保存失败' }).finally(() => {
+      this.running++; job.status = 'downloading'; job.phase = 'downloading'; job.startedAt = Date.now()
+      job.queueMs = job.startedAt - job.createdAt
+      if (job.analytics) this.analytics?.record('job_started', job.analytics, { entityId: job.analytics.entityId, queueMs: job.queueMs, phase: 'downloading' }, job.analytics.entityId + ':started')
+      this.emit('updated', job.owner)
+      const execution = this.run(job).catch(() => { job.status = 'error'; job.errorCode = 'storage'; job.error = '任务保存失败' }).finally(() => {
+        job.finishedAt = Date.now()
+        this.recordFinished(job)
+        this.emit('finished', job); this.emit('updated', job.owner)
         this.executions.delete(job.id); this.running--; this.pump()
       })
       this.executions.set(job.id, execution)
@@ -114,37 +157,52 @@ export class Jobs extends EventEmitter {
     const dir = job.options.outputDir
     const abort = new AbortController()
     this.controllers.set(job.id, abort)
-    const stop = (message: string) => {
-      job.status = 'error'; job.error = message; abort.abort()
+    const stop = (message: string, code: string) => {
+      job.status = 'error'; job.error = message; job.errorCode = code; abort.abort()
       void pauseDownload(job.id).catch(() => { job.error = '无法停止下载进程，请稍后重试' })
     }
-    const timeout = setTimeout(() => stop('任务超时'), this.config.taskTimeout)
+    const timeout = setTimeout(() => stop('任务超时', 'timeout'), this.config.taskTimeout)
     const sizeCheck = setInterval(() => {
       try {
         const size = fs.readdirSync(dir).reduce((sum, name) => sum + fs.statSync(path.join(dir, name)).size, 0)
-        if (size > this.config.maxFileBytes) stop('文件超过大小限制')
+        if (size > this.config.maxFileBytes) stop('文件超过大小限制', 'too-large')
       } catch {}
     }, 2000)
     try {
       fs.mkdirSync(dir, { recursive: true })
       const result = await runYtdlpDownload(job.options, dir)
+      job.downloadEndedAt = Date.now()
       if (job.status !== 'downloading' || result.paused) { if (job.status === 'downloading') job.status = 'paused'; return }
       const filePath = result.filePath
       if (!filePath || !path.resolve(filePath).startsWith(path.resolve(dir) + path.sep)) throw new Error('没有生成可下载文件')
       job.localPath = filePath
+      job.phase = 'uploading'; this.emit('updated', job.owner)
+      if (job.analytics) this.analytics?.record('job_stage', job.analytics, { entityId: job.analytics.entityId, phase: 'uploading' })
       job.file = await this.storage.save(filePath, job.owner + '/' + job.id + '/' + path.basename(filePath), abort)
       if (job.status !== 'downloading') { await this.storage.remove(job.file); delete job.file; return }
       job.status = 'completed'; job.progress = 100
       if (this.config.storage === 'r2') fs.rmSync(dir, { recursive: true, force: true })
-    } catch { if (job.status !== 'paused') { job.status = 'error'; job.error ||= '下载或保存失败，请重试或选择其他格式' } }
+    } catch (error) { if (job.status !== 'paused') { job.status = 'error'; job.errorCode ||= job.phase === 'uploading' ? 'storage' : webErrorCode(error); job.error ||= '下载或保存失败，请重试或选择其他格式' } }
     finally {
+      const ended = Date.now()
+      job.downloadMs = (job.downloadEndedAt || ended) - (job.startedAt || job.createdAt)
+      job.uploadMs = job.downloadEndedAt && job.phase === 'uploading' ? ended - job.downloadEndedAt : 0
       clearTimeout(timeout); clearInterval(sizeCheck)
       this.controllers.delete(job.id)
       this.releases.get(job.id)?.(); this.releases.delete(job.id)
       if (job.status !== 'completed') fs.rmSync(dir, { recursive: true, force: true })
       delete job.options
-      this.persist(); this.emit('finished', job); this.emit('updated', job.owner)
+      job.finishedAt = ended
+      this.persist()
     }
+  }
+  private recordFinished(job: Job) {
+    if (!job.analytics) return
+    this.analytics?.record('job_finished', job.analytics, {
+      entityId: job.analytics.entityId, result: job.status === 'completed' ? 'completed' : job.status === 'paused' && !job.errorCode ? 'cancelled' : 'error',
+      code: job.errorCode, queueMs: job.queueMs, downloadMs: job.downloadMs, uploadMs: job.uploadMs,
+      durationMs: (job.finishedAt || Date.now()) - job.createdAt, bytes: job.file?.size,
+    }, job.analytics.entityId + ':finished')
   }
   async pause(owner: string, clientId: string) {
     const job = [...this.jobs.values()].find(j => j.owner === owner && j.clientId === clientId && (this.executions.has(j.id) || ['pending', 'downloading'].includes(j.status)))
@@ -165,9 +223,11 @@ export class Jobs extends EventEmitter {
     await this.executions.get(job.id)
     if (pending) {
       this.releases.get(job.id)?.(); this.releases.delete(job.id)
-      delete job.options; this.emit('finished', job)
+      delete job.options; job.finishedAt = Date.now(); job.queueMs = job.finishedAt - job.createdAt
+      this.persist()
+      this.recordFinished(job); this.emit('finished', job)
     }
-    this.persist()
+    this.persist(); this.emit('updated', job.owner)
   }
   async remove(owner: string, id: string) {
     const job = this.jobs.get(id)
@@ -187,7 +247,7 @@ export class Jobs extends EventEmitter {
   async close() {
     this.closing = true
     await Promise.all([...this.jobs.values()].map(async job => {
-      if (job.status === 'pending' || job.status === 'downloading') await this.pause(job.owner, job.clientId)
+      if (job.status === 'pending' || job.status === 'downloading') { job.errorCode = 'stopping'; await this.pause(job.owner, job.clientId) }
       else if (this.executions.has(job.id)) {
         await pauseDownload(job.id)
         this.controllers.get(job.id)?.abort()

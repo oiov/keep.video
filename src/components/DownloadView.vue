@@ -10,6 +10,8 @@
           </div>
 
           <UrlInput @parse="parseVideo" />
+          <p v-if="isWeb" class="text-xs text-on-surface-variant">{{ t('web.privacy') }}</p>
+          <p v-if="isWeb && disconnected" role="status" class="text-sm text-on-surface-variant">{{ t('web.disconnected') }}</p>
           <p v-if="store.videoInfo?.parseNotice" role="status" class="text-sm text-on-surface-variant">{{ store.videoInfo.parseNotice }}</p>
 
           <FormatSelector
@@ -58,7 +60,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import MaterialIcon from './icons/MaterialIcon.vue'
 import UrlInput from './UrlInput.vue'
 import FormatSelector from './FormatSelector.vue'
@@ -73,6 +75,10 @@ import { classifyParseError, parseDiagnostic, PARSE_MESSAGES } from '../../share
 
 const store = useDownloadStore()
 const { showError } = useErrorModal()
+const disconnected = ref(false)
+let unsubscribeHistory: (() => void) | undefined
+let unsubscribeProgress: (() => void) | undefined
+function connectionChanged(event: Event) { disconnected.value = (event as CustomEvent).detail !== 'connected' }
 
 // 解析阶段拿不到真实进度（yt-dlp 只在下载阶段输出进度行），
 // 因此不显示百分比，改为不确定进度条 + 已用时间。
@@ -180,6 +186,10 @@ async function parseVideo() {
     store.parseProgress = 100
   } catch (e: any) {
     clearElapsed()
+    if (isWeb) {
+      showError(e.message || t('web.requestFailed'), '', '', e.code === 'authentication' ? 'authentication' : undefined)
+      return
+    }
     // 主进程可能在错误后附带 Cookie 读取失败的解决建议，分类时只看错误本身
     const [rawError, hint = ''] = (e.message || t('download.unknownError')).split('\n\n提示：')
     // 缺少运行依赖时直接弹「一键下载」引导，比只弹错误框更有用
@@ -192,8 +202,7 @@ async function parseVideo() {
     const kind = classifyParseError(sanitized)
       // 把类别一并传给弹窗：它据此决定是否给「提交 Issue」入口
       // （authentication / invalid-url 这类不给，否则会生成空 Issue）
-      if (isWeb) showError(t(['web', 'parse', kind].join('.')))
-      else showError(t('download.parseFailed', { message: PARSE_MESSAGES[kind] }), parseDiagnostic(sanitized), hint, kind)
+      showError(t('download.parseFailed', { message: PARSE_MESSAGES[kind] }), parseDiagnostic(sanitized), hint, kind)
   } finally {
     store.isParsing = false
   }
@@ -209,14 +218,28 @@ async function loadDownloadDir() {
 }
 
 onMounted(async () => {
+  if (isWeb) {
+    window.addEventListener('keep:connection', connectionChanged)
+    unsubscribeHistory = window.electronAPI?.history?.onUpdated(store.syncWebTasks)
+    unsubscribeProgress = window.electronAPI?.onDownloadProgress(data => {
+      const task = store.downloadTasks.find(item => item.id === data.taskId)
+      if (task && ['pending', 'downloading', 'merging'].includes(task.status)) {
+        task.progress = data.percent || 0
+        task.status = data.status === 'merging' ? 'merging' : 'downloading'
+        task.speed = data.speed; task.eta = data.eta
+      }
+    })
+    try { store.syncWebTasks(await window.electronAPI.history.get()) } catch { disconnected.value = true }
+  }
   await loadDownloadDir()
   // 应用代理设置
   const settings = readSettings()
-  if (settings.proxy) {
+  if (!isWeb && settings.proxy) {
     window.electronAPI.app.setProxy(settings.proxy)
   }
   window.addEventListener('tab-changed', async (e: any) => {
     if (e.detail === 'download') await loadDownloadDir()
   })
 })
+onUnmounted(() => { unsubscribeHistory?.(); unsubscribeProgress?.(); window.removeEventListener('keep:connection', connectionChanged) })
 </script>

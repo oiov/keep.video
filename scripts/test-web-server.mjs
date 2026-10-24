@@ -7,6 +7,7 @@ import { spawn } from 'node:child_process'
 import { once, EventEmitter } from 'node:events'
 import { WebSocket } from 'ws'
 import { loader } from './lib/load-source.mjs'
+import { randomUUID } from 'node:crypto'
 const root = path.resolve(import.meta.dirname, '..')
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'keep-web-'))
 const port = 14000 + Math.floor(Math.random() * 10000)
@@ -65,6 +66,9 @@ try {
   const range = await request('/api/files/' + id, owner, { Range: 'bytes=2-5' })
   assert.equal(range.headers.get('x-robots-tag'), 'noindex'); assert.equal(range.status, 206); assert.equal(await range.text(), '2345')
   assert.equal((await request('/api/files/' + id, owner, { Range: 'bytes=30-' })).status, 416)
+  const head = await fetch(origin + '/api/files/' + id, { method: 'HEAD', headers: { Cookie: 'keep_session=' + owner } })
+  assert.equal(head.status, 200)
+  assert.equal(await (await request('/api/files/' + id, owner)).text(), '0123456789')
   const ws = new WebSocket(origin.replace('http', 'ws') + '/api/ws', { headers: { Origin: origin, Cookie: 'keep_session=' + owner } }); sockets.push(ws); await once(ws, 'open')
   let next = 0
   const invoke = (channel, ...args) => new Promise((resolve, reject) => {
@@ -73,6 +77,15 @@ try {
     ws.on('message', receive); ws.send(JSON.stringify({ id, channel, args }))
   })
   assert.equal((await invoke('history:get')).length, 1)
+  const view = (await invoke('history:get'))[0]
+  assert.equal(Date.parse(view.expiresAt) - Date.parse(view.createdAt), 24 * 3600000)
+  assert.equal(view.analytics, undefined, '内部统计标识不可暴露给浏览器')
+  const browserEvent = { name: 'tool_view', id: randomUUID(), url: 'secret-video', title: 'secret-title', Cookie: owner }
+  await invoke('analytics:event', browserEvent)
+  await invoke('analytics:event', browserEvent)
+  await assert.rejects(invoke('analytics:event', { name: 'job_finished', id: randomUUID() }), '浏览器不能伪造服务端结果')
+  for (let i = 0; i < 65; i++) await invoke('analytics:event', { name: 'example_selected', id: randomUUID() })
+  assert.equal((await invoke('history:get')).length, 1, '统计限流不得中断业务连接')
   await assert.rejects(invoke('app:clearLog'))
   await assert.rejects(invoke('ytdlp:parse', 'http://127.0.0.1/'))
   await assert.rejects(invoke('ytdlp:download', { url: 'https://example.com', taskId: 'x', outputDir: '/' }))
@@ -83,6 +96,15 @@ try {
 } finally {
   for (const ws of sockets) ws.terminate()
   child.kill(); await once(child, 'exit').catch(() => {})
+  const events = fs.readdirSync(path.join(data, 'analytics')).filter(name => name.endsWith('.jsonl')).flatMap(name => fs.readFileSync(path.join(data, 'analytics', name), 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)))
+  assert.equal(events.filter(event => event.name === 'tool_view').length, 1, '重复浏览器事件只记录一次')
+  const delivery = events.filter(event => event.name === 'file_delivery_finished')
+  assert.ok(delivery.some(event => event.status === 206 && event.bytes === 4 && event.rangeStart === 2 && event.rangeEnd === 5))
+  assert.ok(delivery.some(event => event.status === 200 && event.method === 'HEAD' && event.bytes === 0))
+  assert.ok(delivery.some(event => event.status === 416 && event.bytes === 0))
+  assert.ok(delivery.some(event => event.status === 200 && event.method === 'GET' && event.bytes === 10))
+  assert.equal(events.filter(event => event.name === 'parse_rejected').length, 1)
+  assert.ok(!JSON.stringify(events).includes(owner) && !JSON.stringify(events).includes('secret-'), '凭据和额外字段不能落入统计')
   fs.rmSync(temp, { recursive: true, force: true })
 }
 
@@ -224,3 +246,155 @@ for (const before of [
   await assert.rejects(shutdownChecks({ [jobsFile]: jobsSource.replaceAll(before, 'void 0') }), `关闭变异必须被拦住：${before}`)
 }
 console.log('通过：Web 解析限额、队列缓存引用、暂停失败保护、解析/上传关闭收尾及 5 个变异反证')
+
+async function analyticsChecks(sources = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keep-analytics-'))
+  const load = loader({}, { URL, Intl }, sources)
+  const { Analytics } = load('docker/server/analytics.ts')
+  const config = { ...load('docker/server/config.ts').readConfig({}), dataDir: dir }
+  const analytics = new Analytics(config)
+  const entityId = randomUUID(), sessionId = randomUUID()
+  try {
+    analytics.record('job_created', { sessionId, input: 'user_input', url: 'secret-url', owner: 'secret-token' }, { entityId, url: 'secret-url', code: 'secret-error', bytes: -1 }, entityId + ':created')
+    await analytics.flush()
+    const file = path.join(analytics.directory, new Date().toISOString().slice(0, 10) + '.jsonl')
+    const text = fs.readFileSync(file, 'utf8')
+    const event = JSON.parse(text.trim())
+    assert.equal(event.entityId, entityId)
+    assert.equal(event.sessionId, sessionId)
+    assert.equal(event.bytes, undefined)
+    assert.equal(event.code, undefined)
+    assert.ok(!text.includes('secret-'))
+    fs.writeFileSync(path.join(analytics.directory, '2000-01-01.jsonl'), 'old')
+    await analytics.cleanup()
+    assert.ok(!fs.existsSync(path.join(analytics.directory, '2000-01-01.jsonl')))
+    const capped = new Analytics({ ...config, analyticsMaxDailyBytes: 1 })
+    capped.record('tool_view')
+    await capped.flush(); assert.equal(capped.health.dropped, 1)
+    const disabled = new Analytics({ ...config, analyticsEnabled: false })
+    disabled.record('tool_view'); await disabled.flush(); assert.equal(disabled.health.written, 0)
+    fs.writeFileSync(path.join(analytics.directory, '2000-01-01.jsonl'), 'old')
+    await disabled.cleanup()
+    assert.ok(!fs.existsSync(path.join(analytics.directory, '2000-01-01.jsonl')), '禁用采集后仍须清理已到期日志')
+    const deniedDir = path.join(dir, 'not-a-directory'); fs.writeFileSync(deniedDir, 'test')
+    const denied = new Analytics({ ...config, dataDir: deniedDir })
+    denied.record('job_finished', {}, { result: 'error' })
+    await denied.flush()
+    assert.equal(denied.health.dropped, 1, '磁盘故障必须吞掉且计入缺失')
+    assert.equal(denied.health.writeFailures, 1)
+    await denied.close()
+    // 中途断电留下半行时，下一批从新行开始，不破坏后续事件。
+    fs.appendFileSync(file, '{"partial":')
+    analytics.record('job_finished', {}, { entityId, result: 'completed' }, entityId + ':finished')
+    await analytics.flush()
+    assert.ok(fs.readFileSync(file, 'utf8').split('\n').some(line => { try { return JSON.parse(line).name === 'job_finished' } catch { return false } }))
+  } finally { await analytics.close(); fs.rmSync(dir, { recursive: true, force: true }) }
+}
+await analyticsChecks()
+
+async function lifecycleChecks(sources = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keep-lifecycle-'))
+  let finishDownload, failParse = false
+  const active = new Map()
+  const events = []
+  const load = loader({
+    'docker/server/electron-shim.ts': { wsEventBus: new EventEmitter() },
+    'docker/server/security.ts': { publicTarget: async () => {} },
+    'electron/parsers/ytdlp.ts': { parseWithYtdlp: async () => {
+      if (failParse) throw new Error('Sign in; secret-cookie')
+      return { title: 'secret-title', formats: [{ formatId: 'mp4' }] }
+    } },
+    'electron/parsers/info-cache.ts': { retainInfoFile: () => () => {}, PARSE_CACHE_LIMIT: 100 },
+    'electron/download/ytdlp.ts': {
+      runYtdlpDownload: (options, outputDir) => new Promise(resolve => {
+        finishDownload = () => { active.delete(options.taskId); resolve({ filePath: path.join(outputDir, 'test.mp4') }) }
+        active.set(options.taskId, finishDownload)
+      }),
+      pauseDownload: async id => { active.get(id)?.() },
+    },
+    'docker/server/storage.ts': { createStorage: () => ({ save: async () => ({ key: 'test', name: 'test.mp4', size: 10, driver: 'local' }), remove: async () => {} }) },
+  }, { URL, setInterval, clearInterval }, sources)
+  const config = { ...load('docker/server/config.ts').readConfig({}), dataDir: dir, workDir: path.join(dir, 'work'), concurrency: 1 }
+  const { Jobs } = load('docker/server/jobs.ts')
+  const jobs = new Jobs(config, '', { record: (name, context, fields, id) => events.push({ name, context, fields, id }) })
+  const url = 'https://example.com/private?token=secret'
+  const raw = { url, taskId: 'first', formatId: 'mp4' }
+  try {
+    await jobs.parse('owner-token', url, { input: 'user_input' })
+    const first = jobs.submit('owner-token', raw)
+    assert.equal(jobs.submit('owner-token', raw).id, first.id)
+    jobs.parsed.clear()
+    assert.equal(jobs.submit('owner-token', raw).id, first.id, '缓存过期后重放仍返回原任务')
+    finishDownload(); await jobs.executions.get(first.id)
+    assert.equal(first.status, 'completed')
+    assert.equal(events.filter(event => event.name === 'job_created').length, 1)
+    assert.equal(events.filter(event => event.name === 'job_finished').length, 1, '无需网页订阅，服务端仍记录完成结果')
+    assert.equal(events.find(event => event.name === 'job_finished').fields.result, 'completed')
+    assert.equal(jobs.submit('owner-token', raw).id, first.id)
+    await jobs.parse('owner-token', url, { input: 'user_input' })
+    const running = jobs.submit('owner-token', { ...raw, taskId: 'second' })
+    const queued = jobs.submit('owner-token', { ...raw, taskId: 'third' })
+    await jobs.pause('owner-token', 'third')
+    await jobs.pause('owner-token', 'second')
+    for (const job of [running, queued]) {
+      const terminals = events.filter(event => event.name === 'job_finished' && event.fields.entityId === job.analytics.entityId)
+      assert.equal(terminals.length, 1); assert.equal(terminals[0].fields.result, 'cancelled')
+    }
+    assert.equal(jobs.submit('owner-token', { ...raw, taskId: 'third' }).id, queued.id, '取消后的重放不是新尝试')
+    first.createdAt -= config.ttl + 1
+    assert.equal(jobs.view(first).fileExists, false)
+    assert.equal(jobs.view(first).filePath, undefined)
+    failParse = true
+    await assert.rejects(jobs.parse('owner-token', url))
+    const failure = events.find(event => event.name === 'parse_finished' && event.fields.result === 'error')
+    assert.equal(failure.fields.code, 'authentication')
+    assert.ok(!JSON.stringify(events).includes('secret') && !JSON.stringify(events).includes('owner-token'))
+  } finally { await jobs.close(); fs.rmSync(dir, { recursive: true, force: true }) }
+}
+await lifecycleChecks()
+for (const [file, before, after, check] of [
+  ['docker/server/analytics.ts', 'if (!this.config.analyticsEnabled || this.stopped) return', 'if (this.stopped) return', analyticsChecks],
+  ['docker/server/analytics.ts', 'this.dayBytes + bytes > this.config.analyticsMaxDailyBytes', 'false', analyticsChecks],
+  ['docker/server/jobs.ts', 'if (existing) return existing', 'if (false) return existing!', lifecycleChecks],
+  ['docker/server/jobs.ts', "this.recordFinished(job)\n        this.emit", "void 0\n        this.emit", lifecycleChecks],
+]) {
+  const source = fs.readFileSync(file, 'utf8'); assert.ok(source.includes(before))
+  await assert.rejects(check({ [file]: source.replace(before, after) }), '统计变异必须被拦住：' + before)
+}
+console.log('通过：事件脱敏、持久化、轮转、禁用、磁盘故障、幂等、取消、关页收尾及 4 个统计变异反证')
+
+function reportChecks(sources = {}) {
+  const load = loader({}, { URL, Intl }, sources)
+  const { buildReport } = load('docker/server/report.ts')
+  const { webErrorCode } = load('shared/web-errors.ts')
+  assert.equal(webErrorCode({ message: '[[deps-missing:yt-dlp]]未找到可用的 yt-dlp' }), 'runtime-unavailable')
+  const options = { from: '2026-10-23T00:00:00Z', to: '2026-10-24T00:00:00Z', asOf: '2026-10-25T00:00:00Z', timezone: 'UTC', environment: 'production', includeTests: false, input: 'all' }
+  const event = (name, entityId, fields = {}) => ({ v: 1, id: name + ':' + entityId, name, entityId, at: '2026-10-23T12:00:00Z', environment: 'production', input: 'user_input', platform: 'youtube', language: 'en', utm: 'direct_or_unknown', referrer: 'direct_or_unknown', ...fields })
+  const rows = [
+    event('job_created', 'one'), event('job_finished', 'one', { result: 'completed', at: '2026-10-24T01:00:00Z' }),
+    event('job_created', 'two'), event('job_created', 'three', { test: true }),
+    event('job_finished', 'three', { test: true, result: 'error' }),
+    event('file_delivery_finished', 'part', { method: 'GET', status: 206, result: 'completed', bytes: 8 }),
+  ]
+  const report = buildReport([...rows, rows[1]], options)
+  assert.equal(report.jobs.created, 2)
+  assert.equal(report.jobs.completed, 1)
+  assert.equal(report.jobs.completionRatePercent, 100)
+  assert.equal(report.jobs.queuedOrMissing, 1)
+  assert.equal(report.delivery.completedFullResponses, 0)
+  assert.equal(report.delivery.completedRangeResponses, 1)
+  assert.equal(report.coverage.duplicateEvents, 1)
+  assert.equal(buildReport(rows, { ...options, asOf: options.to }).jobs.completed, 0)
+}
+reportChecks()
+for (const [file, before, after] of [
+  ['docker/server/report.ts', 'rate(jobs.outcomes.completed, jobs.finished.length)', 'rate(jobs.outcomes.completed, jobs.starts.size)'],
+  ['docker/server/report.ts', '!options.includeTests && e.test', 'false'],
+  ['docker/server/report.ts', 'event.status === 200', 'true'],
+  ['docker/server/report.ts', 'Date.parse(e.at) > asOf', 'false'],
+  ['shared/web-errors.ts', "return 'runtime-unavailable'", "return 'unknown'"],
+]) {
+  const source = fs.readFileSync(file, 'utf8'); assert.ok(source.includes(before))
+  assert.throws(() => reportChecks({ [file]: source.replace(before, after) }), '口径变异必须被拦住：' + before)
+}
+console.log('通过：批次分母、测试排除、Range、截止时间、依赖错误及 5 个口径变异反证')

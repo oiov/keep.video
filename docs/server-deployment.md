@@ -27,6 +27,10 @@
 | WEB_SESSION_TASKS | 10 | 单会话保留任务上限 |
 | MAX_FILE_MB | 2048 | 单任务大小上限 |
 | TASK_TIMEOUT_MINUTES | 60 | 下载任务超时 |
+| ANALYTICS_ENABLED | 1 | 设为 0 关闭本地事件记录，不影响下载 |
+| ANALYTICS_ENVIRONMENT | development | 生产显式设为 production；测试设为 test |
+| ANALYTICS_RETENTION_DAYS | 30 | 1–30 个 UTC 日分区（含当日），与文件 TTL 独立 |
+| ANALYTICS_MAX_DAILY_MB | 16 | 单日事件文件上限，超过后丢弃统计而非阻塞业务 |
 
 local 指服务器磁盘；访客点击保存后由浏览器保存到设备下载目录。网页不能无提示写入访客任意本地目录。
 
@@ -47,3 +51,7 @@ R2 模式仍先本地下载合并，上传成功后删除工作文件。桶无�
 上游来源为 yxxbc/downvid 的 WebUI 架构和下载引擎；Keep Video 独立运营，不是上游官方托管服务。
 
 在线工具默认使用英文，中文入口 /zh/app/；九语言地址与门户一致。公开在线页可索引并列入 sitemap，用户任务及文件仍由会话隔离，/api/ 保持 noindex。旧 /zh-cn/ 地址永久跳转到 /zh/。
+
+## 无数据库统计
+
+P0 使用持久化卷中的 `userdata/analytics/` JSONL 事件与离线报表，不新增数据库或管理接口。指标定义、隐私边界、导出和回退见 [下载漏斗统计](analytics.md)。容器更新后需显式设置 `ANALYTICS_ENVIRONMENT=production` 才会进入默认生产报表；本地默认 development。

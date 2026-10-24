@@ -13,6 +13,7 @@ COPY . .
 ARG SITE_URL=https://keep.video
 RUN pnpm build:web
 RUN pnpm exec esbuild docker/server/index.ts --bundle --platform=node --format=esm --packages=external --alias:electron=./docker/server/electron-shim.ts --outfile=/app/server.mjs
+RUN pnpm exec esbuild scripts/analytics-report.ts --bundle --platform=node --format=esm --outfile=/app/analytics-report.mjs
 FROM node:22-bookworm-slim
 COPY --from=backend /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources && apt-get -o Acquire::Retries=3 update && apt-get -o Acquire::Retries=3 install -y --no-install-recommends ca-certificates curl ffmpeg tini python3 && rm -rf /var/lib/apt/lists/*
@@ -31,6 +32,7 @@ COPY docker/package.json docker/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/server.mjs ./server.mjs
+COPY --from=build /app/analytics-report.mjs ./analytics-report.mjs
 COPY --from=build /app/website/dist ./website/dist
 COPY --from=build /app/docker/dist-web ./docker/dist-web
 COPY --from=backend /downvid-deps ./backend/build/downvid-deps

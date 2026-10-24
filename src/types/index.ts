@@ -51,6 +51,11 @@ export interface VideoInfo {
 }
 
 export interface DownloadTask {
+  serverId?: string
+  webSubmitted?: boolean
+  expiresAt?: string
+  errorCode?: string
+  phase?: string
   id: string
   url: string
   videoInfo: VideoInfo
@@ -70,6 +75,10 @@ export interface DownloadTask {
 }
 
 export interface HistoryRecord {
+  clientId?: string
+  expiresAt?: string
+  errorCode?: string
+  phase?: string
   status?: 'pending' | 'downloading' | 'completed' | 'error' | 'paused'
   progress?: number
   error?: string

@@ -2,7 +2,8 @@ import http from 'node:http'
 import fs from 'node:fs'
 import { isWebPage } from '../../shared/web-routes'
 import path from 'node:path'
-import { randomBytes } from 'node:crypto'
+import { randomBytes, randomUUID } from 'node:crypto'
+import { Transform } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { WebSocketServer, WebSocket } from 'ws'
 import { readConfig } from './config'
@@ -11,6 +12,9 @@ import { startEgress } from './egress'
 import { Jobs, type Job } from './jobs'
 import { serveStatic } from './static'
 import { parseRange } from './storage'
+import { Analytics } from './analytics'
+import { cleanContext, isOpaqueId, type EventFields } from '../../shared/web-analytics'
+import { webErrorCode, WebError } from '../../shared/web-errors'
 
 process.env.KEEP_WEB_MODE = '1'
 const config = readConfig()
@@ -18,16 +22,22 @@ const root = process.env.APP_ROOT || process.cwd()
 process.env.DOWNVID_DATA_DIR = config.dataDir
 const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')).version
 const egress = await startEgress()
-const jobs = new Jobs(config, egress.url)
+const analytics = new Analytics(config)
+const jobs = new Jobs(config, egress.url, analytics)
 const sessions = new Map<string, number>()
+const analyticsSessions = new Map<string, string>()
 const sessionFile = path.join(config.dataDir, 'web-sessions.json')
-try { for (const [id, expiry] of JSON.parse(fs.readFileSync(sessionFile, 'utf8'))) if (expiry > Date.now()) sessions.set(id, expiry) } catch {}
+try {
+  for (const [id, expiry, analyticsId] of JSON.parse(fs.readFileSync(sessionFile, 'utf8'))) if (expiry > Date.now()) {
+    sessions.set(id, expiry); analyticsSessions.set(id, isOpaqueId(analyticsId) ? analyticsId : randomUUID())
+  }
+} catch {}
 function session(req: http.IncomingMessage) {
   const token = /(?:^|;\s*)keep_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1]
   return token && (sessions.get(token) || 0) > Date.now() ? token : undefined
 }
 function saveSessions() {
-  fs.writeFileSync(sessionFile + '.part', JSON.stringify([...sessions]))
+  fs.writeFileSync(sessionFile + '.part', JSON.stringify([...sessions].map(([id, expiry]) => [id, expiry, analyticsSessions.get(id)])))
   fs.renameSync(sessionFile + '.part', sessionFile)
 }
 const server = http.createServer(async (req, res) => {
@@ -43,12 +53,29 @@ const server = http.createServer(async (req, res) => {
       if (!owner) { res.writeHead(401).end(); return }
       if (url.pathname.startsWith('/api/files/')) {
         const job = jobs.jobs.get(url.pathname.slice('/api/files/'.length))
-        if (!job || job.owner !== owner || !job.file || Date.now() - job.createdAt > config.ttl) { res.writeHead(404).end(); return }
-        try { parseRange(req.headers.range, job.file.size) } catch { res.writeHead(416, { 'Content-Range': 'bytes */' + job.file.size }).end(); return }
-        const file = await jobs.storage.open(job.file, job.localPath!, req.headers.range)
-        res.writeHead(file.contentRange ? 206 : 200, { 'Content-Type': 'application/octet-stream', 'Content-Length': file.size, 'Accept-Ranges': 'bytes', 'Content-Disposition': "attachment; filename*=UTF-8''" + encodeURIComponent(job.file.name), ...(file.contentRange ? { 'Content-Range': file.contentRange } : {}) })
-        if (req.method === 'HEAD') { file.stream.destroy(); res.end(); return }
-        await pipeline(file.stream, res)
+        if (!job || job.owner !== owner) { res.writeHead(404).end(); return }
+        const started = Date.now()
+        const fields: EventFields = { entityId: job.analytics?.entityId, method: req.method as 'GET' | 'HEAD', bytes: 0, status: 500, result: 'error' }
+        try {
+          if (!job.file || Date.now() - job.createdAt >= config.ttl) { fields.status = 404; res.writeHead(404).end(); return }
+          try {
+            const range = parseRange(req.headers.range, job.file.size)
+            if (range) { fields.rangeStart = range.start; fields.rangeEnd = range.end }
+          } catch { fields.status = 416; res.writeHead(416, { 'Content-Range': 'bytes */' + job.file.size }).end(); return }
+          const file = await jobs.storage.open(job.file, job.localPath!, req.headers.range)
+          fields.status = file.contentRange ? 206 : 200
+          res.writeHead(fields.status, { 'Content-Type': 'application/octet-stream', 'Content-Length': file.size, 'Accept-Ranges': 'bytes', 'Content-Disposition': "attachment; filename*=UTF-8''" + encodeURIComponent(job.file.name), ...(file.contentRange ? { 'Content-Range': file.contentRange } : {}) })
+          if (req.method === 'HEAD') { file.stream.destroy(); res.end(); fields.result = 'completed'; return }
+          const counter = new Transform({ transform(chunk, _encoding, callback) { fields.bytes! += chunk.length; callback(null, chunk) } })
+          await pipeline(file.stream, counter, res)
+          fields.result = 'completed'
+        } catch {
+          fields.result = res.destroyed ? 'aborted' : 'error'
+          if (!res.headersSent) res.writeHead(500)
+          res.end()
+        } finally {
+          analytics.record('file_delivery_finished', job.analytics, { ...fields, durationMs: Date.now() - started })
+        }
         return
       }
       res.writeHead(404).end(); return
@@ -56,7 +83,7 @@ const server = http.createServer(async (req, res) => {
     if (isWebPage(url.pathname) && !session(req)) {
       if (sessions.size > 10000) { res.writeHead(503).end(); return }
       const token = randomBytes(32).toString('hex')
-      sessions.set(token, Date.now() + 30 * 86400000); saveSessions()
+      sessions.set(token, Date.now() + 30 * 86400000); analyticsSessions.set(token, randomUUID()); saveSessions()
       res.setHeader('Set-Cookie', 'keep_session=' + token + '; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000' + (config.origin.startsWith('https:') ? '; Secure' : ''))
     }
     serveStatic(req, res, process.env.WEBSITE_DIST || path.join(root, 'website/dist'), process.env.DOWNVID_WEB_DIST || path.join(root, 'docker/dist-web'))
@@ -64,6 +91,7 @@ const server = http.createServer(async (req, res) => {
 })
 
 const sockets = new Map<WebSocket, string>()
+const browserEvents = new Map<string, number>()
 const wss = new WebSocketServer({ server, path: '/api/ws', maxPayload: 32768, verifyClient: (info, done) => {
   const owner = session(info.req)
   done(!!owner && isAllowedOrigin(info.origin, config.origin) && [...sockets.values()].filter(value => value === owner).length < 5, 403)
@@ -78,12 +106,13 @@ wss.on('connection', (ws, req) => {
   const owner = session(req)!
   sockets.set(ws, owner)
   let requests = 0
+  let telemetryRequests = 0
   let windowStart = Date.now()
   const waiting = new Map<string, Set<number>>()
-  const reply = (id: number, result?: unknown, error?: string) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ id, result, error })) }
+  const reply = (id: number, result?: unknown, errorCode?: string) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ id, result, ...(errorCode ? { error: true, errorCode } : {}) })) }
   const finished = (job: Job) => {
     if (job.owner !== owner) return
-    for (const id of waiting.get(job.id) || []) reply(id, job.status === 'paused' ? { paused: true } : jobs.view(job), job.status === 'error' ? job.error : undefined)
+    for (const id of waiting.get(job.id) || []) reply(id, job.status === 'paused' ? { paused: true } : jobs.view(job), job.status === 'error' ? job.errorCode || 'unknown' : undefined)
     waiting.delete(job.id)
   }
   jobs.on('finished', finished)
@@ -91,22 +120,46 @@ wss.on('connection', (ws, req) => {
   ws.on('message', async raw => {
     let id = 0
     try {
-      if (Date.now() - windowStart > 60000) { requests = 0; windowStart = Date.now() }
-      if (++requests > 120) { ws.close(1008); return }
+      if (Date.now() - windowStart > 60000) { requests = 0; telemetryRequests = 0; windowStart = Date.now() }
       const message = JSON.parse(String(raw))
       if (!Number.isSafeInteger(message.id) || !Array.isArray(message.args)) throw new Error('请求格式无效')
       id = message.id
       const args = message.args
+      const context = cleanContext({ ...message.context, sessionId: analyticsSessions.get(owner) })
+      if (message.channel === 'analytics:event') {
+        if (++telemetryRequests > 60) { reply(id, false); return }
+      } else if (++requests > 120) {
+        if (message.channel === 'ytdlp:parse') analytics.record('parse_rejected', context, { result: 'rejected', code: 'busy' })
+        reply(id, undefined, 'busy'); return
+      }
       let result: unknown
       switch (message.channel) {
-        case 'ytdlp:parse': result = await jobs.parse(owner, args[0]); break
+        case 'analytics:event': {
+          const event = args[0]
+          if (!['tool_view', 'example_selected', 'file_save_clicked'].includes(event?.name) || !isOpaqueId(event?.id)) throw new WebError('invalid-url', '事件无效')
+          const key = owner + ':' + event.id
+          if (!browserEvents.has(key)) {
+            browserEvents.set(key, Date.now())
+            while (browserEvents.size > 10000) browserEvents.delete(browserEvents.keys().next().value!)
+            if (event.name === 'file_save_clicked') {
+              const job = jobs.jobs.get(event.jobId)
+              if (job && job.owner === owner) analytics.record(event.name, job.analytics, { entityId: job.analytics?.entityId })
+            } else analytics.record(event.name, context)
+          }
+          result = true; break
+        }
+        case 'ytdlp:parse': result = await jobs.parse(owner, args[0], context); break
         case 'ytdlp:download': {
           const job = jobs.submit(owner, args[0])
-          if (job.status === 'completed') result = jobs.view(job)
+          if (job.status === 'error') throw new WebError(job.errorCode || 'unknown', '任务失败')
+          if (job.status === 'paused') result = { paused: true }
+          else if (job.status === 'completed') result = jobs.view(job)
           else { const ids = waiting.get(job.id) || new Set<number>(); ids.add(id); waiting.set(job.id, ids); return }
           break
         }
-        case 'ytdlp:pauseDownload': result = await jobs.pause(owner, args[0]); break
+        case 'ytdlp:pauseDownload':
+          try { result = await jobs.pause(owner, args[0]) } catch { throw new WebError('stop-failed', '任务尚未停止') }
+          break
         case 'history:get': result = jobs.list(owner); break
         case 'history:add': result = true; break
         case 'history:delete': await jobs.remove(owner, args[0]); send(owner, 'history:updated', jobs.list(owner)); result = true; break
@@ -114,7 +167,7 @@ wss.on('connection', (ws, req) => {
         case 'app:getDefaultDownloadDir': case 'dialog:selectFolder': result = '/downloads'; break
         case 'app:getHomeDir': result = ''; break
         case 'app:fetchImage': result = null; break
-        case 'app:cookieStatus': result = { browsers: [], snapshot: null }; break
+        case 'app:cookieStatus': result = { availableBrowsers: [], hasSnapshot: false }; break
         case 'app:getDiskSpace': result = { free: config.maxFileBytes, total: config.maxFileBytes, unit: 'bytes' }; break
         case 'ytdlp:accelerationStatus': result = { available: false }; break
         case 'app:setUpdatePrefs': result = true; break
@@ -123,16 +176,19 @@ wss.on('connection', (ws, req) => {
         default: throw new Error('此功能仅在桌面版可用')
       }
       reply(id, result)
-    } catch { reply(id, undefined, '请求未完成，请检查链接、任务状态或稍后重试') }
+    } catch (error) { reply(id, undefined, webErrorCode(error)) }
   })
 })
 const cleanup = setInterval(() => {
   void jobs.cleanup()
-  for (const [id, expiry] of sessions) if (expiry < Date.now()) sessions.delete(id)
+  void analytics.cleanup()
+  for (const [id, expiry] of sessions) if (expiry < Date.now()) { sessions.delete(id); analyticsSessions.delete(id) }
+  for (const [id, at] of browserEvents) if (Date.now() - at > 86400000) browserEvents.delete(id)
   saveSessions()
 }, 60000)
 cleanup.unref()
 await jobs.cleanup()
+await analytics.cleanup()
 server.listen(config.port, config.host, () => console.log('Keep Video 网站服务已启动'))
 let stopping = false
 async function shutdown() {
@@ -143,6 +199,7 @@ async function shutdown() {
   for (const ws of sockets.keys()) ws.close(1001)
   try {
     await jobs.close()
+    await analytics.close()
     egress.server.close()
     process.exit(0)
   } catch {

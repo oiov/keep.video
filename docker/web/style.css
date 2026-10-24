@@ -1,5 +1,7 @@
 /* 在线工具沿用门户的语义色，桌面端保留原主题。 */
 .webpage {
+  /* 320px 视口还需容纳滚动条，不沿用桌面 body 的最小宽度。 */
+  min-width: 0;
   --color-surface: #fff;
   --color-background: var(--paper);
   --color-on-surface: var(--ink);
@@ -47,7 +49,7 @@
 .webpage .url-actions button:last-child { flex:1; background:var(--orange); color:var(--ink); border:1px solid var(--orange); }
 .webpage .url-actions button:hover { filter:brightness(.97); }
 .webpage .gradient-btn-orange { background:var(--orange); color:var(--ink); box-shadow:none; font-size:14px; }
-.webpage button:focus-visible,.webpage textarea:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
+.webpage button:focus-visible,.webpage textarea:focus-visible,.webpage label:focus-visible { outline:2px solid var(--color-primary); outline-offset:3px; }
 @media(max-width:760px) {
  .webpage .web-tool { min-height:0; }
  .webpage .tool-header { padding:0 20px; height:52px; }
@@ -63,6 +65,8 @@
 }
 .webpage .gradient-btn-orange:hover { background:var(--orange); filter:brightness(.97); }
 @media(max-width:480px) {
+ .webpage .tool-content>.p-8 .w-32 { display:none; }
+ .webpage .tool-content>.p-8 .font-mono { overflow-wrap:anywhere; }
  .webpage .tool-input-inner .w-40 { width:100px; height:70px; }
  .webpage .tool-input-inner .grid-cols-2 { grid-template-columns:1fr; }
 }

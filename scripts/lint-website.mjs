@@ -17,11 +17,11 @@ function checkGoogleTag(html, enabled) {
   return
  }
  assert(scripts[0].index>html.indexOf('<head>')&&scripts[0].index<html.indexOf('</head>'),'GA4 必须位于公共 head 中')
- const execute=(origin,dataLayer)=>{
+ const execute=(origin,dataLayer,search='')=>{
   const loaded=[]
-  const window={location:{origin},...(dataLayer?{dataLayer}:{})}
+  const window={location:{origin,search},...(dataLayer?{dataLayer}:{})}
   const document={createElement:tag=>({tagName:tag}),head:{appendChild:script=>loaded.push(script)}}
-  vm.runInNewContext(scripts[0][1],{window,document},{timeout:1000})
+  vm.runInNewContext(scripts[0][1],{window,document,URLSearchParams},{timeout:1000})
   return {window,loaded}
  }
  for(const existing of [undefined,[]]) {
@@ -35,16 +35,30 @@ function checkGoogleTag(html, enabled) {
   assert.deepEqual(events[1],['config','G-88W870PGZH'])
   assert.deepEqual(loaded,[{tagName:'script',async:true,src:'https://www.googletagmanager.com/gtag/js?id=G-88W870PGZH'}])
  }
+ assert.equal(execute('https://keep.video',undefined,'?analytics_test=1').loaded.length,0,'测试访问不发送 GA4')
  for(const origin of ['http://localhost:4179','http://127.0.0.1:4179','https://seo-check.test','https://keep.video.example.org','http://keep.video','null']) {
   const {window,loaded}=execute(origin)
   assert.equal(loaded.length,0,'非正式来源不得加载 Google 脚本：'+origin)
   assert.equal(window.dataLayer,undefined,'非正式来源不得初始化 GA4：'+origin)
  }
 }
+function checkUmamiTag(html,enabled) {
+ const scripts=[...html.matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].filter(match=>match[1].includes('cloud.umami.is'))
+ assert.equal(scripts.length,enabled?1:0)
+ if(!enabled)return
+ for(const [origin,search,expected] of [['https://keep.video','',1],['https://keep.video','?analytics_test=1',0],['http://localhost:6080','',0]]) {
+  const loaded=[]
+  const window={location:{origin,search}}
+  const document={createElement:()=>({setAttribute(name,value){this[name]=value}}),head:{appendChild:script=>loaded.push(script)}}
+  vm.runInNewContext(scripts[0][1],{window,document,URLSearchParams},{timeout:1000})
+  assert.equal(loaded.length,expected,'Umami 只加载一次，且排除预览、测试和本地')
+  if(expected) { assert.equal(loaded[0].src,'https://cloud.umami.is/script.js'); assert.equal(loaded[0]['data-website-id'],'b8ead086-206d-4f73-9b5e-82bf119f3591') }
+ }
+}
 function checkGooglePages(enabled) {
  const pages=files(out).filter(file=>file.endsWith('index.html'))
  assert.equal(pages.length,117)
- for(const file of pages) checkGoogleTag(fs.readFileSync(file,'utf8'),enabled)
+ for(const file of pages) { const html=fs.readFileSync(file,'utf8'); checkGoogleTag(html,enabled); checkUmamiTag(html,enabled) }
 }
 // 每种语言独立锁定双端定位，不能只验证词条存在或从生产文案生成预期值。
 const modeWords={en:[/online/i,/desktop/i],zh:[/在线/,/桌面/],es:[/online/i,/escritorio/i],'pt-br':[/online/i,/desktop/i],de:[/online/i,/desktop/i],fr:[/en ligne/i,/ordinateur|bureau/i],ja:[/オンライン/,/デスクトップ/],ko:[/온라인/,/데스크톱/],ru:[/онлайн/i,/компьютер/i]}
@@ -121,17 +135,15 @@ try {
   assert.equal((html.match(/class="language-options"/g)||[]).length,1)
   assert(!html.includes('downvid-coral')&&!html.includes('raw.githubusercontent.com'))
   for(const m of html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)) JSON.parse(m[1])
-  const trackingScripts = html.match(/<script[^>]+src="https:\/\/cloud\.umami\.is\/script\.js"[^>]*><\/script>/g) || []
-  assert.equal(trackingScripts.length,1,'每页必须且只能加载一次 Umami')
-  assert.equal(trackingScripts[0],'<script defer src="https://cloud.umami.is/script.js" data-website-id="b8ead086-206d-4f73-9b5e-82bf119f3591"></script>')
+  assert(!html.includes('cloud.umami.is'),'自部署校验域名不加载 Umami')
   checkGoogleTag(html,false)
   if(route.endsWith('/app/')) {
-   assert.equal((html.match(/<script[^>]+src=/g)||[]).length,2)
+   assert.equal((html.match(/<script[^>]+src=/g)||[]).length,1)
    assert(html.includes('src="/app/entry.js"'))
    assert(html.includes('"@type":"WebApplication"') && html.includes('"@type":"FAQPage"'))
    assert(html.includes('class="online-steps"') && html.includes('<noscript>'))
    assert(!html.includes('"@type":"Article"'))
-  } else assert.equal((html.match(/<script[^>]+src=/g)||[]).length,1,'门户只应加载 Umami 统计脚本')
+  } else assert.equal((html.match(/<script[^>]+src=/g)||[]).length,0,'门户非生产页面不应加载统计脚本')
   for(const m of html.matchAll(/(?:href|src)="([^"#]+)(?:#[^"]*)?"/g)){
    const href=m[1]
    if(!href.startsWith('/'))continue

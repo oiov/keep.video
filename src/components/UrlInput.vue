@@ -7,11 +7,11 @@
         id="video-url"
         :spellcheck="false"
         :value="store.url"
-        @input="store.url = ($event.target as HTMLTextAreaElement).value"
+        @input="store.url = ($event.target as HTMLTextAreaElement).value; clipboardFailed = false"
         :aria-label="t('web.inputLabel')"
         class="w-full h-24 bg-surface-container-highest rounded-md p-3 text-on-surface placeholder:text-outline-variant resize-none font-body text-sm border-2 border-transparent focus:border-primary focus:outline-hidden transition-all"
         :placeholder="t('url.placeholder')"
-        @contextmenu.prevent="showContextMenu"
+        @contextmenu="isWeb ? undefined : showContextMenu($event)"
       />
       <!-- Context Menu -->
       <div
@@ -31,6 +31,7 @@
       </div>
     </div>
     <p v-if="isWeb" class="url-hint">{{ store.url === EXAMPLE_URL ? t('web.exampleHint') : t('web.inputHint') }}</p>
+    <p v-if="clipboardFailed" role="status" class="url-hint">{{ t('web.clipboardFailed') }}</p>
     <div class="flex gap-3" :class="{ 'url-actions': isWeb }">
       <button
         class="flex-1 flex items-center justify-center gap-2 rounded-md h-10 bg-surface-container-highest text-on-surface font-headline font-semibold text-sm hover:bg-surface-variant transition-colors border border-outline-variant/10"
@@ -41,7 +42,7 @@
       </button>
       <button
         class="flex-[1.5] flex items-center justify-center gap-2 rounded-md h-10 font-headline font-semibold text-sm transition-all border-2 bg-tertiary-container/40 text-tertiary border-tertiary/30 hover:bg-tertiary-container/60 hover:border-tertiary/50 disabled:opacity-50 disabled:cursor-not-allowed"
-        :disabled="store.isParsing"
+        :disabled="store.isParsing || (isWeb && !store.url.trim())"
         @click="$emit('parse')"
       >
         <MaterialIcon v-if="store.isParsing" name="sync" :size="18" class="animate-spin" />
@@ -102,15 +103,17 @@ import CookieGuide from './CookieGuide.vue'
 import { useDownloadStore } from '../stores/download'
 import { t } from '../i18n'
 import { isWeb } from '../runtime-mode'
+import { EXAMPLE_URL } from '../../shared/web-analytics'
 /** Cookie 使用引导浮窗（不再跳转到仓库 wiki） */
 const showCookieGuide = ref(false)
 
 const store = useDownloadStore()
-// 公开示例仅填入输入框，用户点击解析前不请求视频来源。
-const EXAMPLE_URL = 'https://x.com/CaptainAmerica/status/719944021058060289'
-if (isWeb && !store.url) store.url = EXAMPLE_URL
+const clipboardFailed = ref(false)
 function useExample() {
+  if (store.url.trim() && store.url !== EXAMPLE_URL && !confirm(t('web.replaceExample'))) return
   store.url = EXAMPLE_URL
+  clipboardFailed.value = false
+  window.dispatchEvent(new CustomEvent('keep:analytics', { detail: { name: 'example_selected' } }))
   urlInput.value?.focus()
 }
 
@@ -135,6 +138,7 @@ const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 
 function showContextMenu(event: MouseEvent) {
+  event.preventDefault()
   contextMenuX.value = event.offsetX
   contextMenuY.value = event.offsetY
   contextMenuVisible.value = true
@@ -189,7 +193,8 @@ async function pasteUrl() {
   try {
     const text = await window.electronAPI.clipboard.readText()
     store.url = text
-  } catch {}
+    clipboardFailed.value = false
+  } catch { if (isWeb) { clipboardFailed.value = true; urlInput.value?.focus() } }
 }
 
 function goToSettings() {
@@ -201,7 +206,7 @@ function openCookieHelp() {
 }
 
 // URL 变化时刷新 Cookie 状态，避免"已配好却仍提示"
-watch(() => store.url, () => { void store.refreshCookieStatus() }, { immediate: true })
+watch(() => store.url, () => { if (!isWeb) void store.refreshCookieStatus() }, { immediate: true })
 
 onMounted(() => document.addEventListener('click', hideContextMenu))
 onUnmounted(() => document.removeEventListener('click', hideContextMenu))

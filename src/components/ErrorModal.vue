@@ -76,6 +76,7 @@
             </button>
             <div v-else />
             <div class="flex items-center gap-2">
+              <a v-if="isWeb && kind === 'authentication'" :href="desktopPath" class="text-xs text-primary underline">{{ t('web.desktop') }}</a>
               <!-- 只有「可能是代码缺陷」的错误才给 Issue 入口：
                    用户自己就能解决的（配 Cookie / 换链接 / 等限流）不给，
                    否则会生成一堆只有模板、没有信息的空 Issue（见 #58 #59）。 -->
@@ -108,6 +109,8 @@ import { newIssueUrl } from '../../shared/app'
 import { safeIssueReport, shouldOfferIssue, classifyParseError, type ParseErrorKind } from '../../shared/parse-error'
 import { t } from '../i18n'
 import { isWeb } from '../runtime-mode'
+import { webLocale } from '../../shared/web-routes'
+const desktopPath = isWeb ? '/' + (webLocale(location.pathname)?.prefix ? webLocale(location.pathname)!.prefix + '/' : '') + 'download/' : ''
 
 const props = defineProps<{
   visible: boolean
