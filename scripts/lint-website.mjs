@@ -10,6 +10,27 @@ const build=(env={})=>execFileSync(process.execPath,['scripts/build-website.mjs'
 const files=dir=>fs.readdirSync(dir,{withFileTypes:true}).flatMap(e=>e.isDirectory()?files(path.join(dir,e.name)):[path.join(dir,e.name)])
 // 每种语言独立锁定双端定位，不能只验证词条存在或从生产文案生成预期值。
 const modeWords={en:[/online/i,/desktop/i],zh:[/在线/,/桌面/],es:[/online/i,/escritorio/i],'pt-br':[/online/i,/desktop/i],de:[/online/i,/desktop/i],fr:[/en ligne/i,/ordinateur|bureau/i],ja:[/オンライン/,/デスクトップ/],ko:[/온라인/,/데스크톱/],ru:[/онлайн/i,/компьютер/i]}
+// 功能区必须在首屏之后，且四项本机能力只能出现在明确标注的桌面章节。
+function checkCapabilities(html, prefix, language) {
+ const start=html.indexOf('<section class="section capability-section"')
+ assert(start>html.indexOf('class="hero"'),'首页缺少功能展示区，或覆盖了首屏')
+ const end=html.indexOf('</section>',start)
+ const section=html.slice(start,end)
+ assert.equal((html.match(/id="capabilities"/g)||[]).length,1,'功能展示区 ID 必须唯一')
+ assert(section.includes('aria-labelledby="capabilities-title"'),'功能区缺少可访问名称')
+ assert.equal((section.match(/data-capability=/g)||[]).length,6,'首页必须展示六类能力')
+ for(const key of ['platforms','formats','acceleration','cookies','dependencies','updates']) assert(section.includes('data-capability="'+key+'"'),'缺少功能：'+key)
+ const desktop=section.indexOf('class="capability-desktop"')
+ assert(desktop>0,'缺少桌面能力分区')
+ for(const key of ['acceleration','cookies','dependencies','updates']) assert(section.indexOf('data-capability="'+key+'"')>desktop,'本机能力不得混入在线能力：'+key)
+ const boundary=section.match(/class="capability-boundary">([^<]+)<\/p>/)?.[1]||''
+ for(const word of modeWords[language]) assert(word.test(boundary),'功能说明必须区分在线与桌面版：'+language)
+ assert(section.includes('href="/'+prefix+'download/"'),'桌面入口必须保持当前语言')
+ for(const name of ['YouTube','Bilibili','X / Twitter','TikTok','Instagram','Vimeo',language==='zh'?'抖音':'Douyin',language==='zh'?'快手':'Kuaishou']) assert(section.includes(name),'缺少平台展示：'+name)
+ for(const name of ['MP3','SRT','aria2c','cookies.txt','yt-dlp','FFmpeg','Node / Deno','GitHub Releases']) assert(section.includes(name),'功能说明缺少必要限制或格式：'+name)
+ assert(!/<(?:button|input|script)\b/.test(section),'功能展示不得伪装成可操作的下载或登录界面')
+ assert(!/\b\d+(?:\.\d+)?\s*(?:MB\/s|GB\/s)/.test(section),'功能展示不得编造下载速度')
+}
 try {
  build({SITE_URL:'https://seo-check.test'})
  const pages=files(out).filter(f=>f.endsWith('index.html'))
@@ -32,6 +53,7 @@ try {
   const title=html.match(/<title>(.*?)<\/title>/)?.[1]
   const description=html.match(/name="description" content="([^"]+)"/)?.[1]
   const language=route.split('/')[1] in modeWords?route.split('/')[1]:'en'
+  if(route==='/'||Object.keys(modeWords).some(prefix=>route==='/'+prefix+'/')) checkCapabilities(html,language==='en'?'':language+'/',language)
   const article=route.includes('-video-downloader/')||/\/guides\/[^/]+\/$/.test(route)
   if(route.includes('-video-downloader/')||route.endsWith('/guides/getting-started/')) {
    for(const word of modeWords[language]) {
