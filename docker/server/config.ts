@@ -13,6 +13,10 @@ export function readConfig(env = process.env) {
   if (!['http:', 'https:'].includes(origin.protocol) || origin.pathname !== '/' || origin.username || origin.password || origin.search || origin.hash) throw new Error('SITE_URL 必须是站点源地址')
   const dataDir = path.resolve(env.DOWNVID_DATA_DIR || 'data/userdata')
   const analyticsEnvironment = env.ANALYTICS_ENVIRONMENT || 'development'
+  const localOrigin = ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)
+  if (!localOrigin && env.ANALYTICS_ENABLED !== '0' && !env.ANALYTICS_ENVIRONMENT) {
+    throw new Error('非本地站点必须显式设置 ANALYTICS_ENVIRONMENT=production、development 或 test，避免统计环境误标')
+  }
   if (!['production', 'development', 'test'].includes(analyticsEnvironment)) throw new Error('统计环境必须为 production、development 或 test')
   if (positive('ANALYTICS_RETENTION_DAYS', 30) > 30) throw new Error('统计原始事件最多保留 30 天')
   const workDir = path.resolve(env.DOWNVID_DOWNLOADS || 'data/downloads')
@@ -28,6 +32,8 @@ export function readConfig(env = process.env) {
     analyticsMaxDailyBytes: positive('ANALYTICS_MAX_DAILY_MB', 16) * 1024 * 1024,
     port: positive('DOWNVID_WEB_PORT', 6080), host: env.DOWNVID_WEB_HOST || '127.0.0.1',
     concurrency: positive('WEB_CONCURRENCY', 3), maxQueued: positive('WEB_MAX_QUEUED', 30),
+    parseHourlyLimit: positive('WEB_PARSE_HOURLY_LIMIT', 60), parseDailyLimit: positive('WEB_PARSE_DAILY_LIMIT', 200),
+    downloadDailyLimit: positive('WEB_DOWNLOAD_DAILY_LIMIT', 30),
     maxSessionTasks: positive('WEB_SESSION_TASKS', 10), ttl: positive('FILE_TTL_HOURS', 24) * 3600000,
     taskTimeout: positive('TASK_TIMEOUT_MINUTES', 60) * 60000,
     maxFileBytes: positive('MAX_FILE_MB', 2048) * 1024 * 1024,

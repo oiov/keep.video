@@ -6,7 +6,7 @@
 
 1. 使用「Keep Video 镜像」工作流；main 发布 latest，版本 tag 发布版本标签。首次发布后将 GitHub Package 设为公开，或在服务器登录 GHCR。
 2. 将 docker-compose.yml 和 docker/.env.example 复制到服务器同一目录，后者命名为 .env。
-3. 设置 SITE_URL=https://keep.video，然后执行 docker compose pull 和 docker compose up -d。
+3. 设置 SITE_URL=https://keep.video 和 ANALYTICS_ENVIRONMENT=production，然后执行 docker compose pull 和 docker compose up -d。已有部署也必须补齐统计环境；非本地站点启用统计却未指定环境时会拒绝启动，不再静默记为 development。
 4. HTTPS 反向代理转发到 127.0.0.1:6080，支持 WebSocket Upgrade，并将下载响应超时设置为足够长。应用只暴露回环端口。Caddy 可使用 keep.video 站点块内的 reverse_proxy 127.0.0.1:6080。
 5. 确认首页、/zh/、/app/、/healthz 正常后，移除旧 Worker 自定义域绑定，再切换域名到服务器。
 
@@ -25,10 +25,13 @@
 | WEB_CONCURRENCY | 3 | 全局并发下载上限 |
 | WEB_MAX_QUEUED | 30 | 全局运行和等待任务上限 |
 | WEB_SESSION_TASKS | 10 | 单会话保留任务上限 |
+| WEB_PARSE_HOURLY_LIMIT | 60 | 单会话过去 1 小时的累计解析预留次数 |
+| WEB_PARSE_DAILY_LIMIT | 200 | 单会话过去 24 小时的累计解析预留次数 |
+| WEB_DOWNLOAD_DAILY_LIMIT | 30 | 单会话过去 24 小时的累计下载任务预留次数 |
 | MAX_FILE_MB | 2048 | 单任务大小上限 |
 | TASK_TIMEOUT_MINUTES | 60 | 下载任务超时 |
 | ANALYTICS_ENABLED | 1 | 设为 0 关闭本地事件记录，不影响下载 |
-| ANALYTICS_ENVIRONMENT | development | 生产显式设为 production；测试设为 test |
+| ANALYTICS_ENVIRONMENT | 本地 development | 非本地站点启用统计时必填；线上 production，预览显式 development 或 test |
 | ANALYTICS_RETENTION_DAYS | 30 | 1–30 个 UTC 日分区（含当日），与文件 TTL 独立 |
 | ANALYTICS_MAX_DAILY_MB | 16 | 单日事件文件上限，超过后丢弃统计而非阻塞业务 |
 
@@ -46,6 +49,12 @@ R2 模式仍先本地下载合并，上传成功后删除工作文件。桶无�
 
 在线模式仅支持公开 HTTP/HTTPS 链接，不接受访客 Cookie、服务器目录或代理配置；需要登录态的来源使用桌面版。关闭页面后服务器继续任务，同一浏览器可在下载历史查看结果。清除 Cookie 后无法访问旧任务。
 
+来源要求真人验证与内容要求登录分开返回；不通过重复切换下载器客户端绕过验证。对同一会话、同一链接的这两类错误冷却 5 分钟，冷却期拒绝再次请求来源，其他链接仍可尝试。该缓存有界且只在内存保留，服务重启后消失；这不表示来源限制已经解除。桌面版同样不保证能处理受限内容。
+
+累计额度按滚动窗口计算，不在整点或午夜清零。额度清单 web-usage.json 位于持久化数据目录，只保留会话凭据的 SHA-256 散列及计额时间；与统计采集是否启用无关。请求先预留并原子落盘再执行，失败、取消和删除任务不退额，WebSocket 重连和服务重启也不清零。重复提交同一个已存在任务不再次扣额。解析预留在公网地址校验前进行，DNS／地址校验失败也会消耗额度；冷却或繁忙拒绝不扣额。清单损坏时拒绝启动并保留原文件，写入失败时拒绝新增操作，不静默放行。
+
+这些额度只约束一个匿名会话，不能阻止攻击者新建会话；目前也不是全站日预算或交付字节配额。代理缓冲、重复保存和跨会话请求仍需部署方结合带宽／磁盘监控与入口防护控制，不应据此承诺已解决滥用或成本问题。
+
 服务重启将执行中任务标记失败，可重新解析；已完成文件保留到过期。下载器经过受限公网代理，部署方还应设置容器出站网络策略。磁盘按并发与文件上限预留空间。
 
 上游来源为 yxxbc/downvid 的 WebUI 架构和下载引擎；Keep Video 独立运营，不是上游官方托管服务。
@@ -54,4 +63,4 @@ R2 模式仍先本地下载合并，上传成功后删除工作文件。桶无�
 
 ## 无数据库统计
 
-P0 使用持久化卷中的 `userdata/analytics/` JSONL 事件与离线报表，不新增数据库或管理接口。指标定义、隐私边界、导出和回退见 [下载漏斗统计](analytics.md)。容器更新后需显式设置 `ANALYTICS_ENVIRONMENT=production` 才会进入默认生产报表；本地默认 development。
+P0 使用持久化卷中的 `userdata/analytics/` JSONL 事件与离线报表，不新增数据库或管理接口。指标定义、隐私边界、导出和回退见 [下载漏斗统计](analytics.md)。上线前设置 `ANALYTICS_ENVIRONMENT=production`；历史误标日志不会自动修改，须显式按其原环境单独导出并注明口径。

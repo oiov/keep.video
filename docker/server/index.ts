@@ -109,7 +109,10 @@ wss.on('connection', (ws, req) => {
   let telemetryRequests = 0
   let windowStart = Date.now()
   const waiting = new Map<string, Set<number>>()
-  const reply = (id: number, result?: unknown, errorCode?: string) => { if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ id, result, ...(errorCode ? { error: true, errorCode } : {}) })) }
+  const reply = (id: number, result?: unknown, errorCode?: string, retryAfterSeconds?: number) => {
+    if (ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ id, result, ...(errorCode ? { error: true, errorCode } : {}),
+      ...(Number.isSafeInteger(retryAfterSeconds) && retryAfterSeconds! > 0 ? { retryAfterSeconds: Math.min(retryAfterSeconds!, 86400) } : {}) }))
+  }
   const finished = (job: Job) => {
     if (job.owner !== owner) return
     for (const id of waiting.get(job.id) || []) reply(id, job.status === 'paused' ? { paused: true } : jobs.view(job), job.status === 'error' ? job.errorCode || 'unknown' : undefined)
@@ -176,7 +179,7 @@ wss.on('connection', (ws, req) => {
         default: throw new Error('此功能仅在桌面版可用')
       }
       reply(id, result)
-    } catch (error) { reply(id, undefined, webErrorCode(error)) }
+    } catch (error) { reply(id, undefined, webErrorCode(error), error instanceof WebError ? error.retryAfterSeconds : undefined) }
   })
 })
 const cleanup = setInterval(() => {

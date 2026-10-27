@@ -1,6 +1,6 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { randomUUID } from 'node:crypto'
+import { createHash, randomUUID } from 'node:crypto'
 import { EventEmitter } from 'node:events'
 import { parseWithYtdlp } from '../../electron/parsers/ytdlp'
 import { runYtdlpDownload, pauseDownload } from '../../electron/download/ytdlp'
@@ -11,7 +11,10 @@ import { createStorage, type StoredFile } from './storage'
 import type { Config } from './config'
 import type { Analytics } from './analytics'
 import { cleanContext, EXAMPLE_URL, platformCategory, type AnalyticsContext } from '../../shared/web-analytics'
-import { WebError, webErrorCode } from '../../shared/web-errors'
+import { WebError, webErrorCode, isSourceRestriction } from '../../shared/web-errors'
+import { SessionQuota } from './quota'
+
+const SOURCE_RETRY_DELAY = 5 * 60000
 
 export interface Job {
   id: string; owner: string; clientId: string; url: string; title: string; createdAt: number
@@ -34,6 +37,8 @@ export class Jobs extends EventEmitter {
   private controllers = new Map<string, AbortController>()
   private pauseRequests = new Map<string, Promise<void>>()
   private parseWaiters = new Set<() => void>()
+  private restrictedParses = new Map<string, { code: string; until: number }>()
+  private quota: SessionQuota
   storage: ReturnType<typeof createStorage>
   constructor(public config: Config, public proxy: string, private analytics?: Analytics) {
     super()
@@ -41,6 +46,7 @@ export class Jobs extends EventEmitter {
     this.storage = createStorage(config)
     fs.mkdirSync(config.dataDir, { recursive: true })
     fs.mkdirSync(config.workDir, { recursive: true })
+    this.quota = new SessionQuota(config)
     try {
       for (const job of JSON.parse(fs.readFileSync(this.manifest(), 'utf8'))) {
         if (job.file && job.file.driver !== config.storage) throw new Error('请先清理旧存储任务再切换存储驱动')
@@ -80,18 +86,24 @@ export class Jobs extends EventEmitter {
   list(owner: string) { return [...this.jobs.values()].filter(j => j.owner === owner).map(j => this.view(j)).reverse() }
   async parse(owner: string, raw: unknown, metadata: Partial<AnalyticsContext> = {}) {
     const context = cleanContext({ ...metadata, platform: platformCategory(raw), input: raw === EXAMPLE_URL ? 'example' : metadata.input === 'user_input' ? 'user_input' : 'unknown' })
-    const reject = (code: string, message: string): never => {
+    const reject = (code: string, message: string, retryAfterSeconds?: number): never => {
       this.analytics?.record('parse_rejected', context, { result: 'rejected', code })
-      throw new WebError(code, message)
+      throw new WebError(code, message, retryAfterSeconds)
     }
     if (this.closing) reject('stopping', '服务正在停止')
     if (typeof raw !== 'string' || raw.length > 4096) reject('invalid-url', '链接无效')
     if (this.parsing >= this.config.concurrency) reject('busy', '解析繁忙，请稍后重试')
     const input = raw as string
+    const restrictionKey = createHash('sha256').update(owner + '\0' + input).digest('hex')
+    const restriction = this.restrictedParses.get(restrictionKey)
+    if (restriction && restriction.until > Date.now()) reject(restriction.code, '来源限制尚未解除，请勿反复重试同一链接', Math.ceil((restriction.until - Date.now()) / 1000))
+    this.restrictedParses.delete(restrictionKey)
     this.parsing++
     const parseId = randomUUID(), startedAt = Date.now()
     let accepted = false
     try {
+      try { this.quota.consume(owner, 'parse') }
+      catch (error) { reject(webErrorCode(error), '无法预留解析额度，请稍后重试', error instanceof WebError ? error.retryAfterSeconds : undefined) }
       try { await publicTarget(input) } catch { reject('invalid-url', '链接无效或不是公网地址') }
       accepted = true
       this.analytics?.record('parse_requested', context, { entityId: parseId })
@@ -104,7 +116,15 @@ export class Jobs extends EventEmitter {
       this.analytics?.record('parse_finished', context, { entityId: parseId, result: 'success', durationMs: Date.now() - startedAt })
       return publicInfo
     } catch (error) {
-      if (accepted) this.analytics?.record('parse_finished', context, { entityId: parseId, result: 'error', code: webErrorCode(error), durationMs: Date.now() - startedAt })
+      const code = webErrorCode(error)
+      if (accepted) {
+        this.analytics?.record('parse_finished', context, { entityId: parseId, result: 'error', code, durationMs: Date.now() - startedAt })
+        if (isSourceRestriction(code)) {
+          this.restrictedParses.set(restrictionKey, { code, until: Date.now() + SOURCE_RETRY_DELAY })
+          while (this.restrictedParses.size > 1000) this.restrictedParses.delete(this.restrictedParses.keys().next().value!)
+          throw new WebError(code, '来源要求验证或登录，当前在线请求无法继续', SOURCE_RETRY_DELAY / 1000)
+        }
+      }
       throw error
     } finally {
       this.parsing--
@@ -119,11 +139,17 @@ export class Jobs extends EventEmitter {
     if (existing) return existing
     const parsed = this.parsed.get(owner + ':' + raw?.url)
     if (!parsed || Date.now() - parsed.time > 20 * 60000) throw new WebError('parse-required', '请先重新解析链接')
-    if ([...this.jobs.values()].filter(j => ['pending', 'downloading'].includes(j.status)).length >= this.config.maxQueued || [...this.jobs.values()].filter(j => j.owner === owner).length >= this.config.maxSessionTasks) throw new WebError('queue-full', '任务数量达到上限，请删除旧任务后重试')
+    const reject = (error: WebError): never => {
+      this.analytics?.record('job_rejected', parsed.context, { parseId: parsed.parseId, result: 'rejected', code: error.code })
+      throw error
+    }
+    if ([...this.jobs.values()].filter(j => ['pending', 'downloading'].includes(j.status)).length >= this.config.maxQueued || [...this.jobs.values()].filter(j => j.owner === owner).length >= this.config.maxSessionTasks) reject(new WebError('queue-full', '任务数量达到上限，请删除旧任务后重试'))
     const mode = ['video', 'audio', 'subtitle'].includes(raw.downloadMode) ? raw.downloadMode : 'video'
     const formats = [...parsed.info.formats, ...(parsed.info.audioFormats || [])]
     const format = formats.find((f: any) => f.formatId === raw.formatId)
-    if (!format && mode !== 'subtitle') throw new WebError('format-unavailable', '请选择解析结果中的格式')
+    if (!format && mode !== 'subtitle') reject(new WebError('format-unavailable', '请选择解析结果中的格式'))
+    try { this.quota.consume(owner, 'download') }
+    catch (error) { reject(error instanceof WebError ? error : new WebError('storage', '无法保存会话额度')) }
     const id = randomUUID()
     const job: Job = { id, owner, clientId: raw.taskId, url: raw.url, title: parsed.info.title, createdAt: Date.now(), status: 'pending', phase: 'queued', progress: 0,
       analytics: { ...cleanContext(parsed.context), entityId: randomUUID(), parseId: parsed.parseId } }
@@ -237,6 +263,9 @@ export class Jobs extends EventEmitter {
     this.jobs.delete(id); this.persist()
   }
   async cleanup() {
+    // 额度清理失败不重置预算，也不能变成未处理的后台异常。
+    try { this.quota.cleanup() } catch { console.warn('会话额度清理失败，将在下一轮重试') }
+    for (const [key, restriction] of this.restrictedParses) if (restriction.until <= Date.now()) this.restrictedParses.delete(key)
     for (const job of this.jobs.values()) {
       if (Date.now() - job.createdAt > this.config.ttl && !['pending', 'downloading'].includes(job.status)) {
         try { await this.remove(job.owner, job.id) } catch { /* 保留清单，下次继续删除。 */ }

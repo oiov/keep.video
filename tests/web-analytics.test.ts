@@ -29,6 +29,71 @@ describe('网页统计口径', () => {
     expect(webErrorCode({ message: '[[deps-missing:ffmpeg]]未找到可用的 ffmpeg' })).toBe('runtime-unavailable')
     expect(webErrorKey('authentication')).toBe('web.parse.authentication')
     expect(webErrorKey('secret')).toBe('web.requestFailed')
+    expect(webErrorKey('verification-required')).toBe('web.parse.verification-required')
+    expect(webErrorKey('parse-quota')).toBe('web.error.parse-quota')
+    expect(webErrorKey('download-quota')).toBe('web.error.download-quota')
+  })
+  it('新平台和短链使用固定枚举，不误匹配伪装域名或查询串', () => {
+    for (const [host, expected] of [['pin.it', 'pinterest'], ['www.pinterest.com', 'pinterest'], ['fb.watch', 'facebook'], ['www.facebook.com', 'facebook'], ['redd.it', 'reddit'], ['clips.twitch.tv', 'twitch'], ['dai.ly', 'dailymotion'], ['soundcloud.com', 'soundcloud'], ['ok.ru', 'okru'], ['vkvideo.ru', 'vk']]) {
+      expect(platformCategory('https://' + host + '/fixture')).toBe(expected)
+      expect(platformCategory('https://' + host + '.example.com/fixture')).toBe('other')
+    }
+    expect(platformCategory('https://WWW.YOUTUBE.COM./watch?v=fixture')).toBe('youtube')
+    expect(platformCategory('https://example.com/?url=https://youtube.com/')).toBe('other')
+    expect(platformCategory('file:///youtube.com/fixture')).toBe('unknown')
+  })
+  it('环境选错会明确提示，不能把被筛掉的数据当零访问', () => {
+    const rows = [event('tool_view', 'dev', { environment: 'development' })]
+    const report = buildReport([...rows, rows[0]], options)
+    expect(report.coverage.environmentEventsInWindow).toEqual({ development: 1 })
+    expect(report.coverage.warnings.join('')).toContain('其他环境数据')
+    expect(report.coverage.recordedEvents).toBe(0)
+    expect(buildReport(rows, { ...options, environment: 'development' }).coverage.warnings.join('')).toContain('非生产环境')
+  })
+  it('零任务平台仍展示解析失败，缺失终态不充当失败', () => {
+    const report = buildReport([
+      event('parse_requested', 'denied', { platform: 'youtube' }),
+      event('parse_finished', 'denied', { platform: 'youtube', result: 'error', code: 'verification-required' }),
+      event('parse_requested', 'pending', { platform: 'youtube' }),
+      event('parse_rejected', 'quota', { platform: 'youtube', code: 'parse-quota' }),
+      event('job_rejected', 'job-quota', { code: 'download-quota', result: 'rejected' }),
+    ], options)
+    expect(report.breakdown.platform).toEqual([expect.objectContaining({ value: 'youtube', created: 0, parseAccepted: 2, parseError: 1, parseUnresolved: 1, parseSuccessRatePercent: 0, parseFailures: { 'verification-required': 1 } })])
+    expect(report.parses.rejections).toEqual({ 'parse-quota': 1 })
+    expect(report.jobs).toMatchObject({ created: 0, rejected: 1, rejections: { 'download-quota': 1 }, completionRatePercent: null })
+  })
+  it('高频会话不被删除，集中度和敏感性分析不输出会话 ID', () => {
+    const rows: AnalyticsEvent[] = []
+    for (const [sessionId, count, result] of [['fixture-session-a', 70, 'success'], ['fixture-session-b', 30, 'success'], ['fixture-session-c', 2, 'error']] as const) {
+      for (let i = 0; i < count; i++) {
+        rows.push(event('parse_requested', sessionId + i, { sessionId }))
+        rows.push(event('parse_finished', sessionId + i, { result }))
+      }
+    }
+    const report = buildReport(rows, options)
+    expect(report.parses.accepted).toBe(102)
+    expect(report.parses.sessions).toMatchObject({ submitted: 3, withSuccess: 2, withoutSuccess: 1 })
+    expect(report.parses.concentration).toMatchObject({ topOneRequests: 70, topTwoRequests: 100, withoutTopTwo: { excludedSessions: 2, accepted: 2, finished: 2, success: 0, successRatePercent: 0 } })
+    expect(report.coverage.warnings.join('')).toContain('高频会话')
+    expect(JSON.stringify(report)).not.toContain('fixture-session-')
+  })
+  it('会话漏斗按创建窗口追踪，完整交付去重且不把 Range 当完整文件', () => {
+    const rows = [
+      event('tool_view', 'view', { sessionId: 'session' }),
+      event('parse_requested', 'parse', { sessionId: 'session', input: 'user_input' }),
+      event('parse_finished', 'parse', { result: 'success' }),
+      event('job_created', 'job', { sessionId: 'session', input: 'user_input' }),
+      event('job_finished', 'job', { result: 'completed' }),
+      event('file_delivery_finished', 'job', { method: 'GET', status: 206, result: 'completed', bytes: 2 }),
+      event('file_delivery_finished', 'job', { id: 'delivery-full', method: 'GET', status: 200, result: 'completed', bytes: 10, at: '2026-10-24T01:00:00+08:00' }),
+    ]
+    expect(buildReport(rows, { ...options, asOf: options.to }).usage.fullyDeliveredSessions).toBe(0)
+    const report = buildReport(rows, options)
+    expect(report.usage).toMatchObject({ successfulParseSessions: 1, jobSessions: 1, activatedSessions: 1, fullyDeliveredSessions: 1 })
+    expect(report.delivery.distinctFullResponseJobs).toBe(0)
+    const withFull = [...rows, { ...rows[6], id: 'first-full', at: options.from }, { ...rows[6], id: 'repeat-full', at: options.from }]
+    expect(buildReport(withFull, options).delivery).toMatchObject({ completedFullResponses: 2, distinctFullResponseJobs: 1 })
+    expect(buildReport(rows, { ...options, input: 'example' }).usage.fullyDeliveredSessions).toBe(1)
   })
   it('按创建批次追踪跨日结果、去重、排除测试，不把缺失终态算失败', () => {
     const rows = [

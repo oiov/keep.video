@@ -29,7 +29,7 @@ fs.writeFileSync(path.join(data, 'web-sessions.json'), JSON.stringify([[owner, D
 const id = 'test-file'
 const file = path.join(downloads, 'test.mp4'); fs.writeFileSync(file, '0123456789')
 fs.writeFileSync(path.join(data, 'web-jobs.json'), JSON.stringify([{ id, owner, clientId: id, url: 'https://example.com/video', title: '测试文件', createdAt: Date.now(), status: 'completed', progress: 100, localPath: file, file: { key: id, name: 'test.mp4', size: 10, driver: 'local' } }]))
-const child = spawn(process.execPath, ['--import', 'tsx', 'docker/server/index.ts'], { cwd: root, env: { ...process.env, TSX_TSCONFIG_PATH: 'docker/server/tsconfig.json', SITE_URL: origin, DOWNVID_WEB_HOST: '127.0.0.1', DOWNVID_WEB_PORT: String(port), DOWNVID_DATA_DIR: data, DOWNVID_DOWNLOADS: downloads, WEBSITE_DIST: website, DOWNVID_WEB_DIST: app, STORAGE_DRIVER: 'local' }, stdio: ['ignore', 'pipe', 'pipe'] })
+const child = spawn(process.execPath, ['--import', 'tsx', 'docker/server/index.ts'], { cwd: root, env: { ...process.env, TSX_TSCONFIG_PATH: 'docker/server/tsconfig.json', SITE_URL: origin, DOWNVID_WEB_HOST: '127.0.0.1', DOWNVID_WEB_PORT: String(port), DOWNVID_DATA_DIR: data, DOWNVID_DOWNLOADS: downloads, WEBSITE_DIST: website, DOWNVID_WEB_DIST: app, STORAGE_DRIVER: 'local', ANALYTICS_ENVIRONMENT: 'test', ANALYTICS_ENABLED: '1', WEB_PARSE_HOURLY_LIMIT: '1' }, stdio: ['ignore', 'pipe', 'pipe'] })
 let output = ''; child.stdout.on('data', d => output += d); child.stderr.on('data', d => output += d)
 const sockets = []
 const request = (route, token, headers = {}) => fetch(origin + route, { headers: { ...(token ? { Cookie: 'keep_session=' + token } : {}), ...headers }, redirect: 'manual', signal: AbortSignal.timeout(5000) })
@@ -88,6 +88,14 @@ try {
   assert.equal((await invoke('history:get')).length, 1, '统计限流不得中断业务连接')
   await assert.rejects(invoke('app:clearLog'))
   await assert.rejects(invoke('ytdlp:parse', 'http://127.0.0.1/'))
+  const reconnected = new WebSocket(origin.replace('http', 'ws') + '/api/ws', { headers: { Origin: origin, Cookie: 'keep_session=' + owner } })
+  sockets.push(reconnected); await once(reconnected, 'open')
+  const quotaReply = once(reconnected, 'message')
+  reconnected.send(JSON.stringify({ id: 1, channel: 'ytdlp:parse', args: ['https://example.com/video'] }))
+  const quotaError = JSON.parse(String((await quotaReply)[0]))
+  assert.equal(quotaError.errorCode, 'parse-quota', '跨连接仍使用同一会话额度')
+  assert.ok(quotaError.retryAfterSeconds > 0 && quotaError.retryAfterSeconds <= 3600)
+  assert.equal(quotaError.error, true)
   await assert.rejects(invoke('ytdlp:download', { url: 'https://example.com', taskId: 'x', outputDir: '/' }))
   const denied = new WebSocket(origin.replace('http', 'ws') + '/api/ws', { headers: { Origin: 'https://invalid.example', Cookie: 'keep_session=' + owner } }); sockets.push(denied)
   const response = await new Promise(resolve => { denied.on('unexpected-response', (_, res) => { resolve(res.statusCode); denied.terminate() }); denied.on('error', () => {}) })
@@ -103,7 +111,8 @@ try {
   assert.ok(delivery.some(event => event.status === 200 && event.method === 'HEAD' && event.bytes === 0))
   assert.ok(delivery.some(event => event.status === 416 && event.bytes === 0))
   assert.ok(delivery.some(event => event.status === 200 && event.method === 'GET' && event.bytes === 10))
-  assert.equal(events.filter(event => event.name === 'parse_rejected').length, 1)
+  assert.equal(events.filter(event => event.name === 'parse_rejected').length, 2)
+  assert.ok(events.some(event => event.code === 'parse-quota'))
   assert.ok(!JSON.stringify(events).includes(owner) && !JSON.stringify(events).includes('secret-'), '凭据和额外字段不能落入统计')
   fs.rmSync(temp, { recursive: true, force: true })
 }
@@ -132,7 +141,7 @@ async function jobChecks(sources = {}) {
   }, { URL, setInterval, clearInterval, process: Object.assign(Object.create(process), { once: () => {} }) }, sources)
   cache = load('electron/parsers/info-cache.ts')
   const { Jobs } = load('docker/server/jobs.ts')
-  const config = { ...load('docker/server/config.ts').readConfig({}), dataDir: dir, workDir: path.join(dir, 'work'), concurrency: 1 }
+  const config = { ...load('docker/server/config.ts').readConfig({ WEB_PARSE_HOURLY_LIMIT: '200' }), dataDir: dir, workDir: path.join(dir, 'work'), concurrency: 1 }
   const jobs = new Jobs(config, 'server-proxy')
   const firstUrl = 'https://example.com/one', secondUrl = 'https://example.com/two'
   try {
@@ -395,6 +404,150 @@ for (const [file, before, after] of [
   ['shared/web-errors.ts', "return 'runtime-unavailable'", "return 'unknown'"],
 ]) {
   const source = fs.readFileSync(file, 'utf8'); assert.ok(source.includes(before))
-  assert.throws(() => reportChecks({ [file]: source.replace(before, after) }), '口径变异必须被拦住：' + before)
+  assert.throws(() => reportChecks({ [file]: source.replaceAll(before, after) }), '口径变异必须被拦住：' + before)
 }
 console.log('通过：批次分母、测试排除、Range、截止时间、依赖错误及 5 个口径变异反证')
+
+function quotaChecks(sources = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keep-quota-'))
+  const load = loader({}, { URL }, sources)
+  const { SessionQuota, quotaRetryAt } = load('docker/server/quota.ts')
+  const { readConfig } = load('docker/server/config.ts')
+  const config = { ...readConfig({ WEB_PARSE_HOURLY_LIMIT: '1', WEB_PARSE_DAILY_LIMIT: '2', WEB_DOWNLOAD_DAILY_LIMIT: '1', ANALYTICS_ENABLED: '0' }), dataDir: dir }
+  const now = Date.now(), hour = 3600000, day = 24 * hour
+  const limited = code => error => error.code === code && error.retryAfterSeconds > 0
+  try {
+    assert.throws(() => readConfig({ SITE_URL: 'https://example.com' }), /ANALYTICS_ENVIRONMENT/)
+    assert.equal(readConfig({ SITE_URL: 'https://example.com', ANALYTICS_ENVIRONMENT: 'production' }).analyticsEnvironment, 'production')
+    assert.equal(quotaRetryAt([now - hour], [{ duration: hour, limit: 1 }], now), now)
+    let quota = new SessionQuota(config)
+    quota.consume('fixture-owner-token', 'parse', now)
+    assert.throws(() => quota.consume('fixture-owner-token', 'parse', now + 1), limited('parse-quota'))
+    quota = new SessionQuota(config)
+    assert.throws(() => quota.consume('fixture-owner-token', 'parse', now + 1), limited('parse-quota'), '重启不能重置额度')
+    quota.consume('fixture-other-token', 'parse', now + 1)
+    quota.consume('fixture-owner-token', 'parse', now + hour)
+    assert.throws(() => quota.consume('fixture-owner-token', 'parse', now + 2 * hour), limited('parse-quota'), '小时窗口释放后，日额度仍生效')
+    quota.consume('fixture-owner-token', 'parse', now + day)
+    quota.consume('fixture-owner-token', 'download', now)
+    assert.throws(() => quota.consume('fixture-owner-token', 'download', now + 1), limited('download-quota'))
+    const file = path.join(dir, 'web-usage.json'), text = fs.readFileSync(file, 'utf8')
+    assert.ok(!text.includes('fixture-owner-token') && !text.includes('fixture-other-token'), '清单只保存会话散列与计额时间')
+    if (process.platform !== 'win32') assert.equal(fs.statSync(file).mode & 0o777, 0o600)
+    quota.cleanup(now + 2 * day)
+    assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).sessions.length, 0, '过期额度不无限保留')
+    fs.writeFileSync(file, '{broken')
+    assert.throws(() => new SessionQuota(config), /不会自动清空/)
+    assert.equal(fs.readFileSync(file, 'utf8'), '{broken', '损坏清单不能被自动覆盖')
+    fs.unlinkSync(file); fs.mkdirSync(file)
+    assert.throws(() => quota.consume('fixture-owner-token', 'parse', now + 3 * day), error => error.code === 'storage', '落盘失败必须拒绝执行')
+    fs.rmdirSync(file)
+    quota.consume('fixture-owner-token', 'parse', now + 3 * day)
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+}
+
+async function accessChecks(sources = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keep-access-'))
+  let calls = 0, fail = true
+  const events = []
+  const load = loader({
+    'docker/server/electron-shim.ts': { wsEventBus: new EventEmitter() },
+    'docker/server/security.ts': { publicTarget: async () => {} },
+    'electron/parsers/ytdlp.ts': { parseWithYtdlp: async () => {
+      calls++
+      if (fail) throw new Error("Sign in to confirm you're not a bot https://example.com/?token=fixture-secret")
+      return { title: '测试', formats: [{ formatId: 'mp4' }] }
+    } },
+    'electron/parsers/info-cache.ts': { retainInfoFile: () => () => {}, PARSE_CACHE_LIMIT: 100 },
+    'electron/download/ytdlp.ts': { runYtdlpDownload: async (_options, dir) => ({ filePath: path.join(dir, 'test.mp4') }), pauseDownload: async () => {} },
+    'docker/server/storage.ts': { createStorage: () => ({ save: async () => ({ key: 'test', name: 'test.mp4', size: 10, driver: 'local' }), remove: async () => {} }) },
+  }, { URL, setInterval, clearInterval }, sources)
+  const config = { ...load('docker/server/config.ts').readConfig({ WEB_PARSE_HOURLY_LIMIT: '3', WEB_DOWNLOAD_DAILY_LIMIT: '1' }), dataDir: dir, workDir: path.join(dir, 'work') }
+  const { Jobs } = load('docker/server/jobs.ts')
+  const jobs = new Jobs(config, '', { record: (name, _context, fields) => events.push({ name, ...fields }) })
+  const url = 'https://youtube.com/watch?v=fixture'
+  try {
+    await assert.rejects(jobs.parse('owner', url), error => error.code === 'verification-required' && error.retryAfterSeconds === 300)
+    await assert.rejects(jobs.parse('owner', url), error => error.code === 'verification-required' && error.retryAfterSeconds > 0)
+    assert.equal(calls, 1, '冷却期不再次请求来源站点')
+    assert.equal(events.filter(e => e.name === 'parse_finished').length, 1)
+    assert.equal(events.filter(e => e.name === 'parse_rejected').length, 1)
+    assert.ok(!JSON.stringify(events).includes('fixture-secret'))
+    await assert.rejects(jobs.parse('other', url))
+    assert.equal(calls, 2, '来源限制缓存按会话隔离')
+    fail = false
+    const otherUrl = 'https://example.com/allowed'
+    await jobs.parse('owner', otherUrl)
+    await jobs.parse('owner', otherUrl)
+    await assert.rejects(jobs.parse('owner', 'https://example.com/quota'), error => error.code === 'parse-quota')
+    assert.equal(calls, 4, '超过累计额度的请求不启动下载器')
+    const raw = { taskId: 'first', url: otherUrl, formatId: 'mp4' }
+    const job = jobs.submit('owner', raw)
+    assert.equal(jobs.submit('owner', raw).id, job.id, '幂等重放不重复扣额')
+    await jobs.executions.get(job.id)
+    await jobs.remove('owner', job.id)
+    assert.throws(() => jobs.submit('owner', { ...raw, taskId: 'second' }), error => error.code === 'download-quota', '删除旧任务不返还滚动下载额度')
+    assert.ok(events.some(event => event.name === 'job_rejected' && event.code === 'download-quota'), '下载额度拒绝单列，不并入已创建任务失败率')
+  } finally { await jobs.close(); fs.rmSync(dir, { recursive: true, force: true }) }
+}
+
+quotaChecks()
+await accessChecks()
+for (const [file, before, after, check] of [
+  ['docker/server/quota.ts', 'try { this.persist() }', 'try { void 0 }', quotaChecks],
+  ['docker/server/quota.ts', 'active.length >= limit', 'false', quotaChecks],
+  ['docker/server/quota.ts', "{ duration: DAY, limit: this.config.parseDailyLimit }", "{ duration: HOUR, limit: this.config.parseDailyLimit }", quotaChecks],
+  ['docker/server/config.ts', "!localOrigin && env.ANALYTICS_ENABLED !== '0'", "false && env.ANALYTICS_ENABLED !== '0'", quotaChecks],
+  ['docker/server/jobs.ts', "this.quota.consume(owner, 'parse')", 'void 0', accessChecks],
+  ['docker/server/jobs.ts', "this.quota.consume(owner, 'download')", 'void 0', accessChecks],
+  ['docker/server/jobs.ts', "this.analytics?.record('job_rejected'", "this.analytics?.record('job_created'", accessChecks],
+  ['docker/server/jobs.ts', 'restriction && restriction.until > Date.now()', 'false', accessChecks],
+]) {
+  const source = fs.readFileSync(file, 'utf8'); assert.ok(source.includes(before))
+  await assert.rejects(async () => check({ [file]: source.replace(before, after) }), '额度与访问限制变异必须被拦住：' + before)
+}
+console.log('通过：累计额度、重启持久化、环境漏配、来源冷却与 8 个变异反证')
+
+function optimizationReportChecks(sources = {}) {
+  const load = loader({}, { URL, Intl }, sources)
+  const { buildReport } = load('docker/server/report.ts')
+  const { classifyParseError } = load('shared/parse-error.ts')
+  const { platformCategory } = load('shared/web-analytics.ts')
+  assert.equal(classifyParseError("Sign in to confirm you're not a bot"), 'verification-required')
+  assert.equal(platformCategory('https://pin.it/fixture'), 'pinterest')
+  assert.equal(platformCategory('https://pin.it.example.com/fixture'), 'other')
+  const options = { from: '2026-10-23T00:00:00Z', to: '2026-10-24T00:00:00Z', asOf: '2026-10-25T00:00:00Z', timezone: 'UTC', environment: 'production', includeTests: false, input: 'all' }
+  const event = (name, id, fields = {}) => ({ v: 1, id: name + ':' + id, entityId: id, name, at: '2026-10-23T12:00:00Z', environment: 'production', input: 'user_input', platform: 'youtube', language: 'en', utm: 'direct_or_unknown', referrer: 'direct_or_unknown', ...fields })
+  assert.ok(buildReport([event('tool_view', 'dev', { environment: 'development' })], options).coverage.warnings.length > 0)
+  const rows = []
+  for (const [sessionId, count, result] of [['first', 70, 'success'], ['second', 30, 'success'], ['third', 2, 'error']]) {
+    rows.push(event('tool_view', sessionId, { sessionId }))
+    for (let i = 0; i < count; i++) {
+      rows.push(event('parse_requested', sessionId + i, { sessionId }))
+      rows.push(event('parse_finished', sessionId + i, { result }))
+    }
+  }
+  let report = buildReport(rows, options)
+  assert.equal(report.breakdown.platform[0].parseError, 2)
+  assert.equal(report.parses.concentration.topTwoRequests, 100)
+  assert.equal(report.parses.concentration.withoutTopTwo.successRatePercent, 0)
+  assert.equal(report.usage.successfulParseSessions, 2)
+  rows.push(event('job_created', 'job', { sessionId: 'first' }), event('job_finished', 'job', { result: 'completed' }),
+    event('file_delivery_finished', 'job', { method: 'GET', status: 200, result: 'completed' }))
+  report = buildReport(rows, options)
+  assert.equal(report.usage.fullyDeliveredSessions, 1)
+  assert.equal(report.delivery.distinctFullResponseJobs, 1)
+}
+optimizationReportChecks()
+for (const [file, before, after] of [
+  ['shared/parse-error.ts', "return 'verification-required'", "return 'authentication'"],
+  ['shared/web-analytics.ts', "'pin.it': 'pinterest'", "'pin.it': 'other'"],
+  ['docker/server/report.ts', 'Object.keys(environmentEvents).length', 'false'],
+  ['docker/server/report.ts', 'group.parseError++', 'void 0'],
+  ['docker/server/report.ts', '!topTwo.has(event.sessionId)', 'true'],
+  ['docker/server/report.ts', 'fullyDelivered.has(event.entityId)', 'false'],
+]) {
+  const source = fs.readFileSync(file, 'utf8'); assert.ok(source.includes(before))
+  assert.throws(() => optimizationReportChecks({ [file]: source.replace(before, after) }), '优化口径变异必须被拦住：' + before)
+}
+console.log('通过：环境警告、平台细分、会话漏斗、集中度、真人验证分类与 6 个变异反证')

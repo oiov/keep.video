@@ -44,6 +44,7 @@ for (const file of files) {
   }
 }
 const report = buildReport(records, { from: args.from!, to: args.to!, asOf: args['as-of']!, timezone: args.timezone!, environment: args.environment!, includeTests: args['include-tests']!, input: args.input as 'all' })
+for (const warning of report.coverage.warnings) console.warn('统计提示：' + warning)
 let health: unknown = null
 try { health = JSON.parse(await fs.readFile(path.join(args.dir!, 'health.json'), 'utf8')) } catch { /* 缺失不代表零丢失。 */ }
 

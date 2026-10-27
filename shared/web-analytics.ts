@@ -1,9 +1,9 @@
 /** 统计只接受枚举与数值；原始 URL、凭据、标题和错误输出不能进入事件。 */
 export const EXAMPLE_URL = 'https://x.com/CaptainAmerica/status/719944021058060289'
 export const sources = ['direct_or_unknown', 'chatgpt', 'search', 'social', 'internal', 'other'] as const
-export const platforms = ['youtube', 'bilibili', 'tiktok', 'douyin', 'kuaishou', 'instagram', 'twitter', 'vimeo', 'other', 'unknown'] as const
+export const platforms = ['youtube', 'bilibili', 'tiktok', 'douyin', 'kuaishou', 'instagram', 'twitter', 'vimeo', 'facebook', 'pinterest', 'reddit', 'twitch', 'dailymotion', 'soundcloud', 'okru', 'vk', 'other', 'unknown'] as const
 export const languages = ['en', 'zh-CN', 'es', 'pt-BR', 'de', 'fr', 'ja', 'ko', 'ru'] as const
-export const eventNames = ['tool_view', 'example_selected', 'parse_rejected', 'parse_requested', 'parse_finished', 'job_created', 'job_started', 'job_stage', 'job_finished', 'file_save_clicked', 'file_delivery_finished'] as const
+export const eventNames = ['tool_view', 'example_selected', 'parse_rejected', 'parse_requested', 'parse_finished', 'job_rejected', 'job_created', 'job_started', 'job_stage', 'job_finished', 'file_save_clicked', 'file_delivery_finished'] as const
 export type EventName = typeof eventNames[number]
 export type Source = typeof sources[number]
 export interface AnalyticsContext {
@@ -63,8 +63,19 @@ export function sourceCategory(value: string, ownHost = ''): Source {
 }
 export function platformCategory(raw: unknown): AnalyticsContext['platform'] {
   try {
-    const host = new URL(String(raw)).hostname
-    const domains: Record<string, AnalyticsContext['platform']> = { 'youtube.com': 'youtube', 'youtu.be': 'youtube', 'bilibili.com': 'bilibili', 'b23.tv': 'bilibili', 'tiktok.com': 'tiktok', 'douyin.com': 'douyin', 'kuaishou.com': 'kuaishou', 'instagram.com': 'instagram', 'x.com': 'twitter', 'twitter.com': 'twitter', 'vimeo.com': 'vimeo' }
+    const url = new URL(String(raw))
+    if (!['http:', 'https:'].includes(url.protocol)) return 'unknown'
+    const host = url.hostname.toLowerCase().replace(/\.$/, '')
+    const domains: Record<string, AnalyticsContext['platform']> = {
+      'youtube.com': 'youtube', 'youtu.be': 'youtube', 'youtube-nocookie.com': 'youtube',
+      'bilibili.com': 'bilibili', 'b23.tv': 'bilibili', 'tiktok.com': 'tiktok',
+      'douyin.com': 'douyin', 'kuaishou.com': 'kuaishou', 'instagram.com': 'instagram',
+      'x.com': 'twitter', 'twitter.com': 'twitter', 'vimeo.com': 'vimeo',
+      'facebook.com': 'facebook', 'fb.watch': 'facebook', 'fb.com': 'facebook',
+      'pinterest.com': 'pinterest', 'pin.it': 'pinterest', 'reddit.com': 'reddit', 'redd.it': 'reddit',
+      'twitch.tv': 'twitch', 'dailymotion.com': 'dailymotion', 'dai.ly': 'dailymotion',
+      'soundcloud.com': 'soundcloud', 'ok.ru': 'okru', 'vk.com': 'vk', 'vkvideo.ru': 'vk',
+    }
     return Object.entries(domains).find(([domain]) => host === domain || host.endsWith('.' + domain))?.[1] || 'other'
   } catch { return 'unknown' }
 }

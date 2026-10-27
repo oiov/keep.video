@@ -1,9 +1,10 @@
 import { classifyParseError, PARSE_MESSAGES } from './parse-error'
 
-export const webErrorCodes = [...Object.keys(PARSE_MESSAGES), 'busy', 'queue-full', 'parse-required', 'timeout', 'too-large', 'storage', 'stopping', 'interrupted', 'stop-failed'] as const
+export const webErrorCodes = [...Object.keys(PARSE_MESSAGES), 'busy', 'queue-full', 'parse-quota', 'download-quota', 'parse-required', 'timeout', 'too-large', 'storage', 'stopping', 'interrupted', 'stop-failed'] as const
 export class WebError extends Error {
-  constructor(public code: string, message: string) { super(message) }
+  constructor(public code: string, message: string, public retryAfterSeconds?: number) { super(message) }
 }
+export const isSourceRestriction = (code: unknown) => code === 'verification-required' || code === 'authentication'
 /** 只返回安全类别，绝不向浏览器透传下载器或系统错误。 */
 export function webErrorCode(error: unknown): string {
   if (error instanceof WebError && webErrorCodes.includes(error.code)) return error.code
@@ -13,5 +14,5 @@ export function webErrorCode(error: unknown): string {
 }
 export function webErrorKey(code: unknown): string {
   if (typeof code !== 'string' || !webErrorCodes.includes(code)) return 'web.requestFailed'
-  return Object.hasOwn(PARSE_MESSAGES, code) ? 'web.parse.' + code : 'web.error.' + code
+  return Object.prototype.hasOwnProperty.call(PARSE_MESSAGES, code) ? 'web.parse.' + code : 'web.error.' + code
 }

@@ -9,7 +9,7 @@
             <p class="text-on-surface-variant text-sm">{{ isWeb ? t('web.subtitle') : t('download.subtitle') }}</p>
           </div>
 
-          <UrlInput @parse="parseVideo" />
+          <UrlInput :retry-seconds="retrySeconds" @parse="parseVideo" />
           <p v-if="isWeb" class="text-xs text-on-surface-variant">{{ t('web.privacy') }}</p>
           <p v-if="isWeb && disconnected" role="status" class="text-sm text-on-surface-variant">{{ t('web.disconnected') }}</p>
           <p v-if="store.videoInfo?.parseNotice" role="status" class="text-sm text-on-surface-variant">{{ store.videoInfo.parseNotice }}</p>
@@ -72,10 +72,18 @@ import { useDepsStore, readMissingKinds, stripDepMarkers } from '../stores/deps'
 import { readSettings } from '../stores/settings'
 import { useErrorModal } from '../composables/useErrorModal'
 import { classifyParseError, parseDiagnostic, PARSE_MESSAGES } from '../../shared/parse-error'
+import type { ParseErrorKind } from '../../shared/parse-error'
 
 const store = useDownloadStore()
 const { showError } = useErrorModal()
 const disconnected = ref(false)
+const retryBlock = ref<{ url: string; until: number; session: boolean } | null>(null)
+const retryClock = ref(Date.now())
+let retryTimer: ReturnType<typeof setInterval> | undefined
+const retrySeconds = computed(() => {
+  const block = retryBlock.value
+  return block && (block.session || block.url === extractUrl(store.url)) ? Math.max(0, Math.ceil((block.until - retryClock.value) / 1000)) : 0
+})
 let unsubscribeHistory: (() => void) | undefined
 let unsubscribeProgress: (() => void) | undefined
 function connectionChanged(event: Event) { disconnected.value = (event as CustomEvent).detail !== 'connected' }
@@ -122,11 +130,12 @@ async function fetchBilibiliThumbnail(thumbnailUrl: string) {
 }
 
 async function parseVideo() {
-  if (!store.url || store.isParsing) return
+  if (!store.url || store.isParsing || retrySeconds.value) return
 
   store.hasParsed = true
   const extractedUrl = extractUrl(store.url)
   if (extractedUrl !== store.url) store.url = extractedUrl
+  const requestedUrl = store.url
 
   // 预校验 URL 格式
   try {
@@ -187,7 +196,17 @@ async function parseVideo() {
   } catch (e: any) {
     clearElapsed()
     if (isWeb) {
-      showError(e.message || t('web.requestFailed'), '', '', e.code === 'authentication' ? 'authentication' : undefined)
+      if (Number.isSafeInteger(e.retryAfterSeconds) && e.retryAfterSeconds > 0) {
+        retryClock.value = Date.now()
+        retryBlock.value = { url: requestedUrl, until: retryClock.value + Math.min(e.retryAfterSeconds, 86400) * 1000, session: e.code === 'parse-quota' }
+        clearInterval(retryTimer)
+        retryTimer = setInterval(() => {
+          retryClock.value = Date.now()
+          if (retryBlock.value && retryClock.value >= retryBlock.value.until) { retryBlock.value = null; clearInterval(retryTimer) }
+        }, 1000)
+      }
+      const kind = Object.prototype.hasOwnProperty.call(PARSE_MESSAGES, e.code) ? e.code as ParseErrorKind : undefined
+      showError(e.message || t('web.requestFailed'), '', '', kind)
       return
     }
     // 主进程可能在错误后附带 Cookie 读取失败的解决建议，分类时只看错误本身
@@ -241,5 +260,5 @@ onMounted(async () => {
     if (e.detail === 'download') await loadDownloadDir()
   })
 })
-onUnmounted(() => { unsubscribeHistory?.(); unsubscribeProgress?.(); window.removeEventListener('keep:connection', connectionChanged) })
+onUnmounted(() => { clearInterval(retryTimer); unsubscribeHistory?.(); unsubscribeProgress?.(); window.removeEventListener('keep:connection', connectionChanged) })
 </script>

@@ -27,7 +27,10 @@ export function installWebBridge() {
   let initialized = false
   const localize = (value: any): any => Array.isArray(value) ? value.map(localize) : value?.errorCode ? { ...value, error: t(webErrorKey(value.errorCode)) } : value
   const publish = (name: string, data: any) => { for (const cb of subscribers.get(name) || []) cb(localize(data)) }
-  const rpcError = (code?: string) => Object.assign(new Error(t(webErrorKey(code))), { code })
+  const rpcError = (code?: string, retryAfterSeconds?: number) => {
+    const retry = Number.isSafeInteger(retryAfterSeconds) && retryAfterSeconds! > 0 ? Math.min(retryAfterSeconds!, 86400) : 0
+    return Object.assign(new Error(t(webErrorKey(code)) + (retry ? ' ' + t('web.retryAfter', { seconds: retry }) : '')), { code, retryAfterSeconds: retry })
+  }
 
   function reconnect() {
     if (retryTimer) return
@@ -83,7 +86,7 @@ export function installWebBridge() {
           const entry = pending.get(message.id)
           if (!entry) return
           pending.delete(message.id)
-          if (message.error) entry.reject(rpcError(message.errorCode))
+          if (message.error) entry.reject(rpcError(message.errorCode, message.retryAfterSeconds))
           else entry.resolve(localize(message.result))
         }
       }

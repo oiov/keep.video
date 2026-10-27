@@ -20,6 +20,13 @@ describe('解析错误与隐私', () => {
   it('格式错误保留挑战失败的诊断依据', () => {
     expect(parseDiagnostic('WARNING: signature solving failed\nERROR: Requested format is not available')).toContain('JS 验证脚本未成功执行')
   })
+  it('真人验证不混入登录限制，诊断不泄漏原始地址', () => {
+    for (const message of ["Sign in to confirm you're not a bot", 'Sign in to confirm you’re not a bot', 'Please verify you are human', 'CAPTCHA required']) {
+      expect(classifyParseError(message)).toBe('verification-required')
+      expect(parseDiagnostic(message + ' https://example.com/?token=fixture-secret')).not.toContain('fixture-secret')
+    }
+    expect(classifyParseError('Private video. Sign in to view')).toBe('authentication')
+  })
 })
 
 describe('YouTube 有限回退策略', () => {
@@ -38,7 +45,7 @@ describe('YouTube 有限回退策略', () => {
     expect(nextYoutubeRetry('The page needs to be reloaded', current, '')).toBeNull()
   })
   it('网络、鉴权和不支持网址不触发客户端回退', () => {
-    for (const error of ['Connection timed out', 'Sign in to confirm', 'Unsupported URL', 'Unable to download API page: HTTP Error 403: Forbidden']) expect(nextYoutubeRetry(error, initial, '')).toBeNull()
+    for (const error of ['Connection timed out', 'Sign in to confirm', "Sign in to confirm you're not a bot", 'Unsupported URL', 'Unable to download API page: HTTP Error 403: Forbidden']) expect(nextYoutubeRetry(error, initial, '')).toBeNull()
     expect(classifyParseError('Unable to download API page: HTTP Error 403: Forbidden')).toBe('access-denied')
   })
 })

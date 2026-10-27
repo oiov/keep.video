@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { videoFilenameTemplate } from '../../shared/download-filename'
+import { platformCategory } from '../../shared/web-analytics'
 import type { VideoInfo, VideoFormat, DownloadTask, AudioFormat, AudioTrack, HistoryRecord } from '../types'
 import { isWeb } from '../runtime-mode'
 import { useDepsStore, readMissingKinds, stripDepMarkers } from './deps'
@@ -114,10 +115,7 @@ export const useDownloadStore = defineStore('download', () => {
   }
 
   // Computed
-  const isYouTubeUrl = computed(() => {
-    const s = url.value.trim().toLowerCase()
-    return s.includes('youtube.com') || s.includes('youtu.be')
-  })
+  const isYouTubeUrl = computed(() => platformCategory(url.value.trim()) === 'youtube')
 
   /**
    * Cookie 是否已经可用（有手动文件 / 有快照 / 有可尝试的浏览器）。

@@ -127,7 +127,7 @@
               <!-- 失败任务此前只能删掉重下（要重新解析、重选格式）。重试直接复用
                    已保存的 url / 格式 / 目录，回到队列里重新排队。 -->
               <button
-                v-if="!isWeb || task.errorCode !== 'authentication'"
+                v-if="!isWeb || (!isSourceRestriction(task.errorCode) && task.errorCode !== 'download-quota')"
                 class="flex items-center gap-1 shrink-0 text-[10px] text-error hover:text-on-error hover:bg-error px-1.5 py-0.5 rounded-sm transition-colors"
                 :title="t('queue.tooltipRetry')"
                 @click="retryTask(task.id)"
@@ -135,7 +135,7 @@
                 <MaterialIcon name="refresh" :size="12" />
                 <span>{{ isWeb ? t('web.parseAgain') : t('common.retry') }}</span>
               </button>
-              <a v-else :href="desktopPath" class="text-xs text-primary underline">{{ t('web.desktop') }}</a>
+              <a v-else-if="isSourceRestriction(task.errorCode)" :href="desktopPath" class="text-xs text-primary underline">{{ t('web.desktop') }}</a>
             </div>
             <span v-if="isWeb && task.expiresAt" class="text-[10px] text-on-surface-variant mt-2">{{ expired(task) ? t('web.expired') : t('web.expiresAt', { time: new Date(task.expiresAt).toLocaleString(locale) }) }}</span>
           </div>
@@ -167,6 +167,7 @@ import { useErrorModal } from '../composables/useErrorModal'
 import { t, locale } from '../i18n'
 import { isWeb } from '../runtime-mode'
 import { webLocale } from '../../shared/web-routes'
+import { isSourceRestriction } from '../../shared/web-errors'
 import { abbreviatePath, ensureHomeDir } from '../composables/usePathDisplay'
 import { updateSettings } from '../stores/settings'
 import type { DownloadTask } from '../types'

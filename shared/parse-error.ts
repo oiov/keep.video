@@ -1,4 +1,4 @@
-export type ParseErrorKind = 'unsupported-url' | 'invalid-url' | 'runtime-unavailable' | 'format-unavailable' | 'page-reload' | 'challenge-failed' | 'authentication' | 'access-denied' | 'network' | 'not-found' | 'rate-limit' | 'unknown'
+export type ParseErrorKind = 'unsupported-url' | 'invalid-url' | 'runtime-unavailable' | 'format-unavailable' | 'page-reload' | 'challenge-failed' | 'verification-required' | 'authentication' | 'access-denied' | 'network' | 'not-found' | 'rate-limit' | 'unknown'
 
 export function classifyParseError(raw: string): ParseErrorKind {
   const marked = /(?:\[\[parse-error:|错误类别：)([\w-]+)/.exec(raw)?.[1]
@@ -8,6 +8,7 @@ export function classifyParseError(raw: string): ParseErrorKind {
   if (/Requested format is not available|No video formats found|Only images are available/i.test(raw)) return 'format-unavailable'
   if (/The page needs to be reloaded/i.test(raw)) return 'page-reload'
   if (/challenge.*fail|signature.*fail|No supported JavaScript runtime/i.test(raw)) return 'challenge-failed'
+  if (/confirm (?:you(?:'|’)re|you are) not a bot|verify (?:that )?(?:you(?:'|’)re|you are) (?:human|a human|not a bot)|captcha/i.test(raw)) return 'verification-required'
   if (/Sign in|private video|登录|authentication/i.test(raw)) return 'authentication'
   if (/429|Too Many Requests/i.test(raw)) return 'rate-limit'
   if (/403|Forbidden/i.test(raw)) return 'access-denied'
@@ -23,6 +24,7 @@ export const PARSE_MESSAGES: Record<ParseErrorKind, string> = {
   'format-unavailable': '未找到可下载的视频格式，请检查运行依赖或登录状态',
   'page-reload': 'YouTube 客户端解析失败，请更新 yt-dlp 后重试',
   'challenge-failed': 'YouTube 验证脚本执行失败，请检查 JS 运行时和 yt-dlp',
+  'verification-required': '来源网站要求真人验证，当前请求无法继续',
   authentication: '该视频需要登录或访问权限，请检查 Cookies 设置',
   'access-denied': '网站拒绝了访问请求，请检查权限或稍后重试',
   network: '网络请求失败或超时，请检查连接后重试',

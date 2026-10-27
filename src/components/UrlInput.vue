@@ -42,14 +42,16 @@
       </button>
       <button
         class="flex-[1.5] flex items-center justify-center gap-2 rounded-md h-10 font-headline font-semibold text-sm transition-all border-2 bg-tertiary-container/40 text-tertiary border-tertiary/30 hover:bg-tertiary-container/60 hover:border-tertiary/50 disabled:opacity-50 disabled:cursor-not-allowed"
-        :disabled="store.isParsing || (isWeb && !store.url.trim())"
+        :disabled="store.isParsing || (isWeb && (!store.url.trim() || retrySeconds > 0))"
         @click="$emit('parse')"
       >
         <MaterialIcon v-if="store.isParsing" name="sync" :size="18" class="animate-spin" />
         <MaterialIcon v-else name="bolt" :size="18" />
-        <span>{{ store.isParsing ? t('url.parsing') : (isWeb ? t('web.parse') : t('url.parse')) }}</span>
+        <span>{{ store.isParsing ? t('url.parsing') : retrySeconds > 0 ? t('web.retryIn', { seconds: retrySeconds }) : (isWeb ? t('web.parse') : t('url.parse')) }}</span>
       </button>
     </div>
+
+    <p v-if="isWeb && store.isYouTubeUrl && !store.videoInfo" class="text-xs text-on-surface-variant">{{ t('web.youtubeLimit') }}</p>
 
     <!-- YouTube Cookie Hint -->
     <div v-if="!isWeb && store.isYouTubeUrl && !store.hasParsed && !store.cookieReady" class="flex flex-col gap-2 p-4 bg-tertiary-container/30 rounded-lg border border-tertiary/20">
@@ -104,6 +106,7 @@ import { useDownloadStore } from '../stores/download'
 import { t } from '../i18n'
 import { isWeb } from '../runtime-mode'
 import { EXAMPLE_URL } from '../../shared/web-analytics'
+withDefaults(defineProps<{ retrySeconds?: number }>(), { retrySeconds: 0 })
 /** Cookie 使用引导浮窗（不再跳转到仓库 wiki） */
 const showCookieGuide = ref(false)
 
