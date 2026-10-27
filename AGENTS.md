@@ -12,7 +12,7 @@ pnpm install
 pnpm dev        # Vite dev server + Electron 热重载；会自动编译 Go 依赖边车
 ```
 
-前置：**Node ≥ 22**、**pnpm ≥ 8**、**Go ≥ 1.24**。
+前置：**Node ≥ 22.13**、**pnpm ≥ 8**、**Go ≥ 1.24**。
 yt-dlp / ffmpeg **不需要**预先安装（见「运行依赖」一节）。
 
 `electron-builder.json5` 的 `extraResources` 指向 `backend/build/${platform}-${arch}`，
@@ -470,7 +470,7 @@ CHANGELOG 用 `## [Unreleased]` 段落累积改动。发布时再一次性改成
 
 - scripts/build-website.mjs 生成 117 个 SEO 页面，docker/web/ 构建工具，docker/server/ 同域托管；/app/ 和 /api/ 不覆盖门户。
 - pnpm build:web 构建两份产物；pnpm test:web 验证会话、私有文件与路由，三个平台 integration job 均运行。镜像工作流 .github/workflows/docker.yml 替代 Worker 部署。
-- STORAGE_DRIVER=local|r2 选择存储；R2_ENDPOINT、R2_BUCKET、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY 仅服务端读取。R2 仍需本地工作目录与持久化任务清单。详见 docs/server-deployment.md。
+- STORAGE_DRIVER=local|r2 选择存储；R2_ENDPOINT、R2_BUCKET、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY 仅服务端读取。R2 仍需本地工作目录与持久化业务数据库。详见 docs/server-deployment.md。
 - 服务端负责全局队列和匿名会话隔离，不能公开桌面管理 IPC；仅接受服务端解析出的格式。成品经 /api/files/:id 授权交付。
 
 - 在线页默认英文 /app/，中文 /zh/app/，其余语言与 shared/site-locales.json 一致；旧 /zh-cn/ 永久跳转到 /zh/。公开说明与表单共用导航，HTML 可索引，私有 /api/ 保持 noindex。浏览器额外七语词条位于 src/i18n/web-locales.json，新增键须同步并通过 lint:i18n。
@@ -478,5 +478,9 @@ CHANGELOG 用 `## [Unreleased]` 段落累积改动。发布时再一次性改成
 - Web 队列以真实下载调用收尾为释放槽位和删除目录的依据，不能只看 paused/error 状态。停止服务必须等待下载、上传及正在解析的请求。
 - 容器使用清单生成器提供的 `YtDlpTag` 与 `YtDlpZipappSHA256`，下载校验后才能执行；保留非 root、发行版 ffmpeg 和 local/R2 存储，不引入上游品牌或架构迁移。
 - 非本地站点启用统计时必须显式设置 ANALYTICS_ENVIRONMENT；报表遇到环境筛选空数据须提示，不自动改写历史记录。
-- `docker/server/quota.ts` 独立持久化匿名会话的滚动解析／下载任务额度，先预留落盘再执行；重连、取消和删除任务不返还额度，幂等重放不得重复扣额。清单损坏保留原件并拒绝启动，不可依赖尽力记录的统计日志作为额度账本。
+- `docker/server/quota.ts` 使用业务 SQLite 事务检查并预留滚动解析／下载额度，提交后才能执行；重连、取消和删除任务不返还额度，幂等重放不得重复扣额。数据库或旧清单损坏保留原件并拒绝启动，不可依赖尽力记录的统计作为额度账本。
 - 真人验证使用 verification-required，与 authentication 分开；相同会话的受限链接冷却，不做绕过来源权限的重试。新错误词条仍须同步九语言。
+
+- Web 使用 Node 22.13+ 内置 SQLite：`docker/server/state.ts` 保存会话、逐条任务及额度；`docker/server/analytics-store.ts` 使用独立统计库，故障不得阻断下载。数据库放本地持久化卷，不能放 R2／共享网络盘；当前仍只支持单实例调度。
+- 旧业务 JSON 在同一事务中一次性导入，旧统计 JSONL 按文件与行号幂等导入；保留原件，原始统计仍按保留期清理。迁移后不双写 JSON，降级到旧文件版必须恢复同批次卷备份，不能只换镜像。热备不得仅复制主数据库而丢掉 WAL。
+- `docker/server/analytics-reader.ts` 使用只读快照、SQL 去重与关联实体查询；不得只按报表窗口截断跨日终态或更早起点。`scripts/test-web-sqlite.mjs` 已并入 pnpm test:web，三个平台现有 integration job 均执行；新增测试仍须做变异反证。

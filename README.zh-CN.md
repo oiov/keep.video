@@ -23,7 +23,7 @@
 
 ## 开发
 
-需要 Node.js 22+、pnpm 和 Go 1.24+。
+需要 Node.js 22.13+、pnpm 和 Go 1.24+。
 
 ```sh
 pnpm install

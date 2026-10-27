@@ -23,7 +23,7 @@ Follow runtime setup on first launch. Some YouTube sources also require Node.js 
 
 ## Develop
 
-Requires Node.js 22+, pnpm and Go 1.24+.
+Requires Node.js 22.13+, pnpm and Go 1.24+.
 
 ```sh
 pnpm install

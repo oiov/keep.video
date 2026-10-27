@@ -74,6 +74,7 @@ website/dist/
 docker/dist-web/
 docker/node_modules/
 data/
+*.sqlite*
 .env
 
 !docker/.env.example

@@ -4,6 +4,11 @@ export interface ReportOptions {
   from: string; to: string; asOf: string; timezone: string
   environment: string; includeTests: boolean; input: 'all' | 'example' | 'user_input' | 'unknown'
 }
+export interface ReportCoverage {
+  recordedEvents: number; duplicateEvents: number
+  firstRecordedAt: string | null; lastRecordedAt: string | null
+  environmentEventsInWindow: Record<string, number>
+}
 const rate = (n: number, d: number) => d ? Math.round(n / d * 10000) / 100 : null
 function distribution(values: number[]) {
   const ordered = values.filter(Number.isFinite).sort((a, b) => a - b)
@@ -12,14 +17,14 @@ function distribution(values: number[]) {
 }
 
 /** 所有转化率按创建批次追踪到 asOf；缺失事件单列，不推断为失败。 */
-export function buildReport(input: AnalyticsEvent[], options: ReportOptions) {
+export function buildReport(input: AnalyticsEvent[], options: ReportOptions, coverage?: ReportCoverage) {
   const from = Date.parse(options.from), to = Date.parse(options.to), asOf = Date.parse(options.asOf)
   if (!Number.isFinite(from) || !Number.isFinite(to) || !Number.isFinite(asOf) || from >= to || asOf < to) throw new Error('时间窗口无效，as-of 不得早于结束时间')
   new Intl.DateTimeFormat('en', { timeZone: options.timezone }).format()
   const inWindow = (e: AnalyticsEvent) => Date.parse(e.at) >= from && Date.parse(e.at) < to
-  const environmentEvents: Record<string, number> = {}
+  const environmentEvents: Record<string, number> = coverage?.environmentEventsInWindow || {}
   const environmentSeen = new Set<string>()
-  for (const e of input) {
+  for (const e of coverage ? [] : input) {
     if (!inWindow(e) || !options.includeTests && e.test || environmentSeen.has(e.environment + ':' + e.id)) continue
     environmentSeen.add(e.environment + ':' + e.id)
     environmentEvents[e.environment] = (environmentEvents[e.environment] || 0) + 1
@@ -117,8 +122,8 @@ export function buildReport(input: AnalyticsEvent[], options: ReportOptions) {
   return {
     metadata: { ...options, exportedAt: new Date().toISOString(), interval: '[from, to)', terminalCutoff: 'asOf' },
     coverage: {
-      recordedEvents: events.length, windowEvents: windowEvents.length, duplicateEvents: duplicates,
-      firstRecordedAt: events[0]?.at || null, lastRecordedAt: events.at(-1)?.at || null,
+      recordedEvents: coverage?.recordedEvents ?? events.length, windowEvents: windowEvents.length, duplicateEvents: coverage?.duplicateEvents ?? duplicates,
+      firstRecordedAt: coverage ? coverage.firstRecordedAt : events[0]?.at || null, lastRecordedAt: coverage ? coverage.lastRecordedAt : events.at(-1)?.at || null,
       environmentEventsInWindow: environmentEvents, warnings,
       siteVisitors: null, pageviews: null, visits: null, resourceCost: null,
       caveats: [

@@ -1,10 +1,8 @@
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { createReadStream } from 'node:fs'
-import { createInterface } from 'node:readline'
 import { parseArgs } from 'node:util'
-import { buildReport } from '../docker/server/report'
-import { eventNames, sourceCategory, type AnalyticsEvent } from '../shared/web-analytics'
+import { readAnalyticsReport } from '../docker/server/analytics-reader'
+import { sourceCategory } from '../shared/web-analytics'
 
 const { values: args } = parseArgs({ options: {
   dir: { type: 'string', default: path.join(process.env.DOWNVID_DATA_DIR || 'data/userdata', 'analytics') },
@@ -26,27 +24,8 @@ for (const [name, value] of [['from', args.from], ['to', args.to], ['as-of', arg
 if (!['production', 'development', 'test'].includes(args.environment!)) throw new Error('统计环境无效')
 if (!['all', 'example', 'user_input', 'unknown'].includes(args.input!)) throw new Error('输入分类无效')
 if (!['markdown', 'csv', 'json'].includes(args.format!)) throw new Error('输出格式无效')
-const records: AnalyticsEvent[] = []
-let malformedLines = 0, filesRead = 0
-let files: string[] = []
-try { files = (await fs.readdir(args.dir!)).filter(name => /^\d{4}-\d{2}-\d{2}\.jsonl$/.test(name)).sort() }
-catch (error: any) { if (error.code !== 'ENOENT') throw error }
-for (const file of files) {
-  filesRead++
-  const lines = createInterface({ input: createReadStream(path.join(args.dir!, file)), crlfDelay: Infinity })
-  for await (const line of lines) {
-    if (!line.trim()) continue
-    try {
-      const event = JSON.parse(line)
-      if (event.v !== 1 || !eventNames.includes(event.name) || typeof event.id !== 'string' || !Number.isFinite(Date.parse(event.at))) throw new Error('事件格式无效')
-      records.push(event)
-    } catch { malformedLines++ }
-  }
-}
-const report = buildReport(records, { from: args.from!, to: args.to!, asOf: args['as-of']!, timezone: args.timezone!, environment: args.environment!, includeTests: args['include-tests']!, input: args.input as 'all' })
+const { report, reader } = await readAnalyticsReport(args.dir!, { from: args.from!, to: args.to!, asOf: args['as-of']!, timezone: args.timezone!, environment: args.environment!, includeTests: args['include-tests']!, input: args.input as 'all' })
 for (const warning of report.coverage.warnings) console.warn('统计提示：' + warning)
-let health: unknown = null
-try { health = JSON.parse(await fs.readFile(path.join(args.dir!, 'health.json'), 'utf8')) } catch { /* 缺失不代表零丢失。 */ }
 
 /** Umami 导出含引号和逗号；仅累加可加的 PV，不累加页面 UV 或访问数。 */
 function csvRows(text: string) {
@@ -90,7 +69,7 @@ if (args.umami) {
     note: '路径报表仅能复核 PV。页面 visitors/visits 不可累加成站点总数，缺少的窗口、来源和入站页不能推断。bounces/totaltime 全零不解释成真实零值。',
   }
 }
-const result = { ...report, reader: { filesRead, malformedLines, health, note: 'health 只覆盖最近进程的尽力记录；缺失、过期、写入期间读取或异常退出均可能产生统计缺口。' }, umami }
+const result = { ...report, reader, umami }
 if (args.format === 'json') console.log(JSON.stringify(result, null, 2))
 else {
   const flat: [string, string][] = []

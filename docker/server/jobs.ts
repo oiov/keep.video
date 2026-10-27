@@ -13,6 +13,7 @@ import type { Analytics } from './analytics'
 import { cleanContext, EXAMPLE_URL, platformCategory, type AnalyticsContext } from '../../shared/web-analytics'
 import { WebError, webErrorCode, isSourceRestriction } from '../../shared/web-errors'
 import { SessionQuota } from './quota'
+import { StateStore } from './state'
 
 const SOURCE_RETRY_DELAY = 5 * 60000
 
@@ -39,6 +40,8 @@ export class Jobs extends EventEmitter {
   private parseWaiters = new Set<() => void>()
   private restrictedParses = new Map<string, { code: string; until: number }>()
   private quota: SessionQuota
+  readonly state: StateStore
+  private closed = false
   storage: ReturnType<typeof createStorage>
   constructor(public config: Config, public proxy: string, private analytics?: Analytics) {
     super()
@@ -46,19 +49,20 @@ export class Jobs extends EventEmitter {
     this.storage = createStorage(config)
     fs.mkdirSync(config.dataDir, { recursive: true })
     fs.mkdirSync(config.workDir, { recursive: true })
-    this.quota = new SessionQuota(config)
+    this.state = new StateStore(config.dataDir)
     try {
-      for (const job of JSON.parse(fs.readFileSync(this.manifest(), 'utf8'))) {
+      this.quota = new SessionQuota(config, this.state)
+      for (const job of this.state.allJobs()) {
         if (job.file && job.file.driver !== config.storage) throw new Error('请先清理旧存储任务再切换存储驱动')
         if (job.status === 'pending' || job.status === 'downloading') {
           job.status = 'error'; job.error = '服务已重启，请重新解析下载'; job.errorCode = 'interrupted'
           job.finishedAt = Date.now()
+          this.state.saveJob(job)
           this.recordFinished(job)
         }
         this.jobs.set(job.id, job)
       }
-    } catch (error) { if (fs.existsSync(this.manifest())) throw error }
-    this.persist()
+    } catch (error) { this.state.close(); throw error }
     wsEventBus.on('download:progress', data => {
       const job = this.jobs.get(data.taskId)
       if (!job || job.status !== 'downloading') return
@@ -72,18 +76,13 @@ export class Jobs extends EventEmitter {
       this.emit('progress', job.owner, { taskId: job.clientId, status: phase, percent: job.progress, speed: data.speed, eta: data.eta, totalSize: data.totalSize })
     })
   }
-  manifest() { return path.join(this.config.dataDir, 'web-jobs.json') }
-  persist() {
-    const file = this.manifest()
-    fs.writeFileSync(file + '.part', JSON.stringify([...this.jobs.values()].map(({ options, ...job }) => job)))
-    fs.renameSync(file + '.part', file)
-  }
+  persist(job: Job) { this.state.saveJob(job) }
   view(job: Job) {
     const expiresAt = job.createdAt + this.config.ttl
     const fileExists = !!job.file && Date.now() < expiresAt
     return { id: job.id, clientId: job.clientId, title: job.title, url: job.url, status: job.status, phase: job.phase, progress: job.progress, errorCode: job.errorCode, createdAt: new Date(job.createdAt).toISOString(), expiresAt: new Date(expiresAt).toISOString(), filePath: fileExists ? '/api/files/' + job.id : undefined, fileExists, quality: job.file?.name || '', format: job.file ? path.extname(job.file.name).slice(1) : '' }
   }
-  list(owner: string) { return [...this.jobs.values()].filter(j => j.owner === owner).map(j => this.view(j)).reverse() }
+  list(owner: string) { return this.state.jobsForOwner(owner).map(j => this.view(this.jobs.get(j.id) || j)) }
   async parse(owner: string, raw: unknown, metadata: Partial<AnalyticsContext> = {}) {
     const context = cleanContext({ ...metadata, platform: platformCategory(raw), input: raw === EXAMPLE_URL ? 'example' : metadata.input === 'user_input' ? 'user_input' : 'unknown' })
     const reject = (code: string, message: string, retryAfterSeconds?: number): never => {
@@ -135,7 +134,8 @@ export class Jobs extends EventEmitter {
     if (this.closing) throw new WebError('stopping', '服务正在停止')
     if (typeof raw?.taskId !== 'string' || raw.taskId.length > 120) throw new WebError('invalid-url', '任务标识无效')
     // 重连重放即使发生在解析缓存失效后，也只返回原任务；重试必须使用新标识。
-    const existing = [...this.jobs.values()].find(j => j.owner === owner && j.clientId === raw.taskId)
+    const saved = this.state.findJob(owner, raw.taskId)
+    const existing = saved ? this.jobs.get(saved.id) || saved : undefined
     if (existing) return existing
     const parsed = this.parsed.get(owner + ':' + raw?.url)
     if (!parsed || Date.now() - parsed.time > 20 * 60000) throw new WebError('parse-required', '请先重新解析链接')
@@ -154,8 +154,8 @@ export class Jobs extends EventEmitter {
     const job: Job = { id, owner, clientId: raw.taskId, url: raw.url, title: parsed.info.title, createdAt: Date.now(), status: 'pending', phase: 'queued', progress: 0,
       analytics: { ...cleanContext(parsed.context), entityId: randomUUID(), parseId: parsed.parseId } }
     job.options = { url: job.url, taskId: id, outputDir: path.join(this.config.workDir, id), formatId: format?.formatId || 'best', hasAudio: format?.hasAudio, downloadMode: mode, filenameTemplate: '%(title).120B.%(ext)s', proxy: this.proxy, cookiesFile: '', cacheFile: parsed.info.cacheFile, acceleration: { enabled: false }, subtitles: (parsed.info.subtitles || []).filter((s: any) => Array.isArray(raw.subtitles) && raw.subtitles.includes(s.language)).map((s: any) => s.language), audioTrack: (parsed.info.audioTracks || []).find((a: any) => a.id === raw.audioTrack?.id) }
+    this.state.insertJob(job)
     this.jobs.set(id, job)
-    try { this.persist() } catch (error) { this.jobs.delete(id); throw error }
     this.analytics?.record('job_created', job.analytics, { entityId: job.analytics!.entityId, parseId: parsed.parseId, phase: 'queued' }, job.analytics!.entityId + ':created')
     this.releases.set(id, retainInfoFile(job.options.cacheFile))
     this.emit('updated', owner); this.pump()
@@ -168,6 +168,17 @@ export class Jobs extends EventEmitter {
       if (job.status !== 'pending') continue
       this.running++; job.status = 'downloading'; job.phase = 'downloading'; job.startedAt = Date.now()
       job.queueMs = job.startedAt - job.createdAt
+      try { this.persist(job) }
+      catch {
+        job.status = 'error'; job.errorCode = 'storage'; job.error = '任务保存失败'
+        job.finishedAt = Date.now()
+        this.releases.get(job.id)?.(); this.releases.delete(job.id)
+        delete job.options
+        try { this.persist(job) } catch { /* 仍无法提交时保留旧记录，重启按中断恢复。 */ }
+        this.recordFinished(job)
+        this.running--; this.emit('finished', job); this.emit('updated', job.owner)
+        continue
+      }
       if (job.analytics) this.analytics?.record('job_started', job.analytics, { entityId: job.analytics.entityId, queueMs: job.queueMs, phase: 'downloading' }, job.analytics.entityId + ':started')
       this.emit('updated', job.owner)
       const execution = this.run(job).catch(() => { job.status = 'error'; job.errorCode = 'storage'; job.error = '任务保存失败' }).finally(() => {
@@ -219,7 +230,7 @@ export class Jobs extends EventEmitter {
       if (job.status !== 'completed') fs.rmSync(dir, { recursive: true, force: true })
       delete job.options
       job.finishedAt = ended
-      this.persist()
+      this.persist(job)
     }
   }
   private recordFinished(job: Job) {
@@ -250,17 +261,17 @@ export class Jobs extends EventEmitter {
     if (pending) {
       this.releases.get(job.id)?.(); this.releases.delete(job.id)
       delete job.options; job.finishedAt = Date.now(); job.queueMs = job.finishedAt - job.createdAt
-      this.persist()
+      this.persist(job)
       this.recordFinished(job); this.emit('finished', job)
     }
-    this.persist(); this.emit('updated', job.owner)
+    this.persist(job); this.emit('updated', job.owner)
   }
   async remove(owner: string, id: string) {
     const job = this.jobs.get(id)
     if (!job || job.owner !== owner || this.executions.has(id) || ['pending', 'downloading'].includes(job.status)) throw new Error('任务不存在或仍在运行')
     if (job.file) await this.storage.remove(job.file)
     fs.rmSync(path.join(this.config.workDir, id), { recursive: true, force: true })
-    this.jobs.delete(id); this.persist()
+    this.state.removeJob(id, owner); this.jobs.delete(id)
   }
   async cleanup() {
     // 额度清理失败不重置预算，也不能变成未处理的后台异常。
@@ -274,6 +285,7 @@ export class Jobs extends EventEmitter {
     for (const [key, value] of this.parsed) if (Date.now() - value.time > 20 * 60000) this.parsed.delete(key)
   }
   async close() {
+    if (this.closed) return
     this.closing = true
     await Promise.all([...this.jobs.values()].map(async job => {
       if (job.status === 'pending' || job.status === 'downloading') { job.errorCode = 'stopping'; await this.pause(job.owner, job.clientId) }
@@ -284,5 +296,7 @@ export class Jobs extends EventEmitter {
     }))
     await Promise.all(this.executions.values())
     if (this.parsing) await new Promise<void>(resolve => this.parseWaiters.add(resolve))
+    this.state.close()
+    this.closed = true
   }
 }

@@ -1,18 +1,19 @@
-import fs from 'node:fs/promises'
 import path from 'node:path'
 import { randomUUID } from 'node:crypto'
-import { cleanContext, eventNames, isOpaqueId, type AnalyticsContext, type AnalyticsEvent, type EventFields, type EventName } from '../../shared/web-analytics'
-import { webErrorCodes } from '../../shared/web-errors'
+import { type AnalyticsContext, type AnalyticsEvent, type EventFields, type EventName } from '../../shared/web-analytics'
+import { cleanEvent } from './analytics-event'
+import { AnalyticsStore } from './analytics-store'
 import type { Config } from './config'
 
-/** 单进程、尽力记录；有界缓冲与每日上限保护下载服务，不能用于计费。 */
+/** 单进程、尽力记录；独立数据库、有界缓冲与短事务不能替代业务额度账本。 */
 export class Analytics {
   private queue: AnalyticsEvent[] = []
   private writing?: Promise<void>
+  private opening?: Promise<AnalyticsStore>
+  private store?: AnalyticsStore
   private stopped = false
+  private cancelled = false
   private retryAt = 0
-  private day = ''
-  private dayBytes = 0
   readonly health = { since: new Date().toISOString(), written: 0, dropped: 0, writeFailures: 0 }
   readonly directory: string
   constructor(private config: Config) { this.directory = path.join(config.dataDir, 'analytics') }
@@ -20,49 +21,46 @@ export class Analytics {
   record(name: EventName, context: Partial<AnalyticsContext> = {}, fields: EventFields = {}, stableId?: string) {
     if (!this.config.analyticsEnabled || this.stopped) return
     if (this.queue.length >= 1000 || Date.now() < this.retryAt) { this.health.dropped++; return }
-    const event: AnalyticsEvent = { ...cleanContext(context), v: 1, id: randomUUID(), name, at: new Date().toISOString(), environment: this.config.analyticsEnvironment, client: 'web' }
-    if (!eventNames.includes(name)) return
-    if (stableId && /^[a-f0-9-]{36}:(created|started|finished)$/.test(stableId)) event.id = stableId
-    for (const key of ['entityId', 'parseId'] as const) if (isOpaqueId(fields[key])) event[key] = fields[key]
-    for (const key of ['durationMs', 'queueMs', 'downloadMs', 'uploadMs', 'bytes', 'status', 'rangeStart', 'rangeEnd'] as const) {
-      const value = fields[key]
-      if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) event[key] = value
-    }
-    if (fields.result && ['success', 'error', 'completed', 'cancelled', 'rejected', 'aborted'].includes(fields.result)) event.result = fields.result
-    if (fields.phase && ['queued', 'downloading', 'merging', 'uploading'].includes(fields.phase)) event.phase = fields.phase
-    if (fields.code && webErrorCodes.includes(fields.code)) event.code = fields.code
-    if (fields.method === 'GET' || fields.method === 'HEAD') event.method = fields.method
+    const id = stableId && /^[a-f0-9-]{36}:(created|started|finished)$/.test(stableId) ? stableId : randomUUID()
+    const event = cleanEvent({ ...context, ...fields, v: 1, id, name, at: new Date().toISOString(), environment: this.config.analyticsEnvironment })
+    if (!event) return
     this.queue.push(event)
     this.start()
   }
+  private database(): Promise<AnalyticsStore> {
+    if (this.cancelled) return Promise.reject(new Error('统计已停止'))
+    if (this.store) return Promise.resolve(this.store)
+    if (!this.opening) this.opening = Promise.resolve().then(async () => {
+      const store = new AnalyticsStore(this.directory)
+      try {
+        await store.importLegacy(() => this.cancelled)
+        if (this.cancelled) throw new Error('统计已停止')
+        this.store = store
+        return store
+      } catch (error) { store.close(); throw error }
+    }).finally(() => { this.opening = undefined })
+    return this.opening
+  }
   private start() {
     if (this.writing) return
-    this.writing = this.drain().finally(() => { this.writing = undefined; if (this.queue.length) this.start() })
+    this.writing = this.drain().finally(() => { this.writing = undefined; if (this.queue.length && !this.cancelled) this.start() })
   }
   private async drain() {
+    let pending = 0
     try {
-      await fs.mkdir(this.directory, { recursive: true, mode: 0o700 })
-      while (this.queue.length) {
-        const date = this.queue[0].at.slice(0, 10)
-        const count = this.queue.findIndex(event => !event.at.startsWith(date))
-        const batch = this.queue.splice(0, count < 0 ? this.queue.length : count)
-        const file = path.join(this.directory, date + '.jsonl')
-        const text = '\n' + batch.map(event => JSON.stringify(event)).join('\n') + '\n'
-        if (this.day !== date) {
-          this.day = date
-          this.dayBytes = await fs.stat(file).then(stat => stat.size, () => 0)
-        }
-        const bytes = Buffer.byteLength(text)
-        if (this.dayBytes + bytes > this.config.analyticsMaxDailyBytes) { this.health.dropped += batch.length; continue }
-        try { await fs.appendFile(file, text, { mode: 0o600 }) }
-        catch { this.health.dropped += batch.length; throw new Error('统计写入失败') }
-        this.dayBytes += bytes
-        this.health.written += batch.length
+      const store = await this.database()
+      while (this.queue.length && !this.cancelled) {
+        const batch = this.queue.splice(0, 100)
+        pending = batch.length
+        const result = store.append(batch, this.config.analyticsMaxDailyBytes)
+        this.health.written += result.written
+        this.health.dropped += result.dropped
+        pending = 0
+        if (this.queue.length) await new Promise(resolve => setTimeout(resolve, 0))
       }
-      await fs.writeFile(path.join(this.directory, 'health.json.part'), JSON.stringify(this.health), { mode: 0o600 })
-      await fs.rename(path.join(this.directory, 'health.json.part'), path.join(this.directory, 'health.json'))
+      store.saveHealth(this.health)
     } catch {
-      this.health.dropped += this.queue.length
+      this.health.dropped += pending + this.queue.length
       this.queue = []
       this.health.writeFailures++
       this.retryAt = Date.now() + 30000
@@ -70,12 +68,14 @@ export class Analytics {
     }
   }
   async cleanup(now = Date.now()) {
+    if (this.stopped || Date.now() < this.retryAt) return
     const cutoff = new Date(now - (this.config.analyticsRetentionDays - 1) * 86400000).toISOString().slice(0, 10)
-    try {
-      for (const name of await fs.readdir(this.directory)) {
-        if (/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(name) && name.slice(0, 10) < cutoff) await fs.unlink(path.join(this.directory, name))
-      }
-    } catch { /* 统计清理失败不影响任务，下一轮重试。 */ }
+    try { await (await this.database()).cleanup(cutoff) }
+    catch {
+      this.health.writeFailures++
+      this.retryAt = Date.now() + 30000
+      console.warn('统计清理或迁移失败，将稍后重试；下载不受影响')
+    }
   }
   async flush() { while (this.writing) await this.writing }
   async close() {
@@ -83,5 +83,9 @@ export class Analytics {
     let timer: ReturnType<typeof setTimeout> | undefined
     await Promise.race([this.flush(), new Promise<void>(resolve => { timer = setTimeout(resolve, 2000); timer.unref() })])
     clearTimeout(timer)
+    this.cancelled = true
+    this.health.dropped += this.queue.length
+    this.queue = []
+    this.store?.close()
   }
 }

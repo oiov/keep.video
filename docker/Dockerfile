@@ -15,6 +15,7 @@ RUN pnpm build:web
 RUN pnpm exec esbuild docker/server/index.ts --bundle --platform=node --format=esm --packages=external --alias:electron=./docker/server/electron-shim.ts --outfile=/app/server.mjs
 RUN pnpm exec esbuild scripts/analytics-report.ts --bundle --platform=node --format=esm --outfile=/app/analytics-report.mjs
 FROM node:22-bookworm-slim
+# 使用 Node 22.13+ 内置 SQLite；不安装第三方原生数据库模块。
 COPY --from=backend /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 RUN sed -i 's|http://deb.debian.org|https://deb.debian.org|g' /etc/apt/sources.list.d/debian.sources && apt-get -o Acquire::Retries=3 update && apt-get -o Acquire::Retries=3 install -y --no-install-recommends ca-certificates curl ffmpeg tini python3 && rm -rf /var/lib/apt/lists/*
 COPY backend/internal/manifest/assets.gen.go /tmp/deps-manifest.go

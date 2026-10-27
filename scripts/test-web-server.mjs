@@ -8,6 +8,12 @@ import { once, EventEmitter } from 'node:events'
 import { WebSocket } from 'ws'
 import { loader } from './lib/load-source.mjs'
 import { randomUUID } from 'node:crypto'
+import { DatabaseSync } from 'node:sqlite'
+function eventsIn(directory) {
+  const db = new DatabaseSync(path.join(directory, 'analytics.sqlite'), { readOnly: true })
+  try { return db.prepare('SELECT payload FROM events ORDER BY seq').all().map(row => JSON.parse(row.payload)) }
+  finally { db.close() }
+}
 const root = path.resolve(import.meta.dirname, '..')
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), 'keep-web-'))
 const port = 14000 + Math.floor(Math.random() * 10000)
@@ -104,7 +110,7 @@ try {
 } finally {
   for (const ws of sockets) ws.terminate()
   child.kill(); await once(child, 'exit').catch(() => {})
-  const events = fs.readdirSync(path.join(data, 'analytics')).filter(name => name.endsWith('.jsonl')).flatMap(name => fs.readFileSync(path.join(data, 'analytics', name), 'utf8').trim().split('\n').filter(Boolean).map(line => JSON.parse(line)))
+  const events = eventsIn(path.join(data, 'analytics'))
   assert.equal(events.filter(event => event.name === 'tool_view').length, 1, '重复浏览器事件只记录一次')
   const delivery = events.filter(event => event.name === 'file_delivery_finished')
   assert.ok(delivery.some(event => event.status === 206 && event.bytes === 4 && event.rangeStart === 2 && event.rangeEnd === 5))
@@ -262,13 +268,13 @@ async function analyticsChecks(sources = {}) {
   const { Analytics } = load('docker/server/analytics.ts')
   const config = { ...load('docker/server/config.ts').readConfig({}), dataDir: dir }
   const analytics = new Analytics(config)
+  const instances = [analytics]
   const entityId = randomUUID(), sessionId = randomUUID()
   try {
     analytics.record('job_created', { sessionId, input: 'user_input', url: 'secret-url', owner: 'secret-token' }, { entityId, url: 'secret-url', code: 'secret-error', bytes: -1 }, entityId + ':created')
     await analytics.flush()
-    const file = path.join(analytics.directory, new Date().toISOString().slice(0, 10) + '.jsonl')
-    const text = fs.readFileSync(file, 'utf8')
-    const event = JSON.parse(text.trim())
+    const event = eventsIn(analytics.directory)[0]
+    const text = JSON.stringify(event)
     assert.equal(event.entityId, entityId)
     assert.equal(event.sessionId, sessionId)
     assert.equal(event.bytes, undefined)
@@ -278,26 +284,27 @@ async function analyticsChecks(sources = {}) {
     await analytics.cleanup()
     assert.ok(!fs.existsSync(path.join(analytics.directory, '2000-01-01.jsonl')))
     const capped = new Analytics({ ...config, analyticsMaxDailyBytes: 1 })
+    instances.push(capped)
     capped.record('tool_view')
     await capped.flush(); assert.equal(capped.health.dropped, 1)
     const disabled = new Analytics({ ...config, analyticsEnabled: false })
+    instances.push(disabled)
     disabled.record('tool_view'); await disabled.flush(); assert.equal(disabled.health.written, 0)
     fs.writeFileSync(path.join(analytics.directory, '2000-01-01.jsonl'), 'old')
     await disabled.cleanup()
     assert.ok(!fs.existsSync(path.join(analytics.directory, '2000-01-01.jsonl')), '禁用采集后仍须清理已到期日志')
     const deniedDir = path.join(dir, 'not-a-directory'); fs.writeFileSync(deniedDir, 'test')
     const denied = new Analytics({ ...config, dataDir: deniedDir })
+    instances.push(denied)
     denied.record('job_finished', {}, { result: 'error' })
     await denied.flush()
     assert.equal(denied.health.dropped, 1, '磁盘故障必须吞掉且计入缺失')
     assert.equal(denied.health.writeFailures, 1)
     await denied.close()
-    // 中途断电留下半行时，下一批从新行开始，不破坏后续事件。
-    fs.appendFileSync(file, '{"partial":')
     analytics.record('job_finished', {}, { entityId, result: 'completed' }, entityId + ':finished')
     await analytics.flush()
-    assert.ok(fs.readFileSync(file, 'utf8').split('\n').some(line => { try { return JSON.parse(line).name === 'job_finished' } catch { return false } }))
-  } finally { await analytics.close(); fs.rmSync(dir, { recursive: true, force: true }) }
+    assert.ok(eventsIn(analytics.directory).some(event => event.name === 'job_finished'))
+  } finally { for (const instance of instances) await instance.close(); fs.rmSync(dir, { recursive: true, force: true }) }
 }
 await analyticsChecks()
 
@@ -363,7 +370,7 @@ async function lifecycleChecks(sources = {}) {
 await lifecycleChecks()
 for (const [file, before, after, check] of [
   ['docker/server/analytics.ts', 'if (!this.config.analyticsEnabled || this.stopped) return', 'if (this.stopped) return', analyticsChecks],
-  ['docker/server/analytics.ts', 'this.dayBytes + bytes > this.config.analyticsMaxDailyBytes', 'false', analyticsChecks],
+  ['docker/server/analytics-store.ts', 'dayBytes + bytes > maxDailyBytes', 'false', analyticsChecks],
   ['docker/server/jobs.ts', 'if (existing) return existing', 'if (false) return existing!', lifecycleChecks],
   ['docker/server/jobs.ts', "this.recordFinished(job)\n        this.emit", "void 0\n        this.emit", lifecycleChecks],
 ]) {
@@ -412,18 +419,22 @@ function quotaChecks(sources = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'keep-quota-'))
   const load = loader({}, { URL }, sources)
   const { SessionQuota, quotaRetryAt } = load('docker/server/quota.ts')
+  const { StateStore } = load('docker/server/state.ts')
   const { readConfig } = load('docker/server/config.ts')
   const config = { ...readConfig({ WEB_PARSE_HOURLY_LIMIT: '1', WEB_PARSE_DAILY_LIMIT: '2', WEB_DOWNLOAD_DAILY_LIMIT: '1', ANALYTICS_ENABLED: '0' }), dataDir: dir }
   const now = Date.now(), hour = 3600000, day = 24 * hour
   const limited = code => error => error.code === code && error.retryAfterSeconds > 0
+  let state
   try {
     assert.throws(() => readConfig({ SITE_URL: 'https://example.com' }), /ANALYTICS_ENVIRONMENT/)
     assert.equal(readConfig({ SITE_URL: 'https://example.com', ANALYTICS_ENVIRONMENT: 'production' }).analyticsEnvironment, 'production')
     assert.equal(quotaRetryAt([now - hour], [{ duration: hour, limit: 1 }], now), now)
-    let quota = new SessionQuota(config)
+    state = new StateStore(dir)
+    let quota = new SessionQuota(config, state)
     quota.consume('fixture-owner-token', 'parse', now)
     assert.throws(() => quota.consume('fixture-owner-token', 'parse', now + 1), limited('parse-quota'))
-    quota = new SessionQuota(config)
+    state.close(); state = new StateStore(dir)
+    quota = new SessionQuota(config, state)
     assert.throws(() => quota.consume('fixture-owner-token', 'parse', now + 1), limited('parse-quota'), '重启不能重置额度')
     quota.consume('fixture-other-token', 'parse', now + 1)
     quota.consume('fixture-owner-token', 'parse', now + hour)
@@ -431,19 +442,16 @@ function quotaChecks(sources = {}) {
     quota.consume('fixture-owner-token', 'parse', now + day)
     quota.consume('fixture-owner-token', 'download', now)
     assert.throws(() => quota.consume('fixture-owner-token', 'download', now + 1), limited('download-quota'))
-    const file = path.join(dir, 'web-usage.json'), text = fs.readFileSync(file, 'utf8')
+    const file = path.join(dir, 'state.sqlite'), text = JSON.stringify(state.db.prepare('SELECT * FROM quota').all())
     assert.ok(!text.includes('fixture-owner-token') && !text.includes('fixture-other-token'), '清单只保存会话散列与计额时间')
     if (process.platform !== 'win32') assert.equal(fs.statSync(file).mode & 0o777, 0o600)
     quota.cleanup(now + 2 * day)
-    assert.equal(JSON.parse(fs.readFileSync(file, 'utf8')).sessions.length, 0, '过期额度不无限保留')
-    fs.writeFileSync(file, '{broken')
-    assert.throws(() => new SessionQuota(config), /不会自动清空/)
-    assert.equal(fs.readFileSync(file, 'utf8'), '{broken', '损坏清单不能被自动覆盖')
-    fs.unlinkSync(file); fs.mkdirSync(file)
+    assert.equal(state.db.prepare('SELECT COUNT(*) AS n FROM quota').get().n, 0, '过期额度不无限保留')
+    state.db.exec('PRAGMA query_only = ON')
     assert.throws(() => quota.consume('fixture-owner-token', 'parse', now + 3 * day), error => error.code === 'storage', '落盘失败必须拒绝执行')
-    fs.rmdirSync(file)
+    state.db.exec('PRAGMA query_only = OFF')
     quota.consume('fixture-owner-token', 'parse', now + 3 * day)
-  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+  } finally { state?.close(); fs.rmSync(dir, { recursive: true, force: true }) }
 }
 
 async function accessChecks(sources = {}) {
@@ -494,7 +502,7 @@ async function accessChecks(sources = {}) {
 quotaChecks()
 await accessChecks()
 for (const [file, before, after, check] of [
-  ['docker/server/quota.ts', 'try { this.persist() }', 'try { void 0 }', quotaChecks],
+  ['docker/server/quota.ts', "db.prepare('INSERT INTO quota VALUES (?, ?, ?)').run(id, action, now)", 'void 0', quotaChecks],
   ['docker/server/quota.ts', 'active.length >= limit', 'false', quotaChecks],
   ['docker/server/quota.ts', "{ duration: DAY, limit: this.config.parseDailyLimit }", "{ duration: HOUR, limit: this.config.parseDailyLimit }", quotaChecks],
   ['docker/server/config.ts', "!localOrigin && env.ANALYTICS_ENABLED !== '0'", "false && env.ANALYTICS_ENABLED !== '0'", quotaChecks],

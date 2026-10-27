@@ -4,7 +4,7 @@
   "version": "1.0.1",
   "type": "module",
   "engines": {
-    "node": ">=22",
+    "node": ">=22.13.0",
     "pnpm": ">=8"
   },
   "description": "Keep Video \u2014 YouTube\u3001Bilibili\u3001TikTok\u3001Instagram\u3001Vimeo \u684c\u9762\u89c6\u9891\u4e0b\u8f7d\u5de5\u5177",
@@ -72,7 +72,7 @@
     "website:build": "node scripts/build-website.mjs",
     "website:preview": "node scripts/serve-website.mjs",
     "build:web": "pnpm website:build && vite build --config docker/web/vite.config.ts",
-    "test:web": "node scripts/test-web-server.mjs && node --import tsx scripts/test-web-storage.mjs",
+    "test:web": "node scripts/test-web-sqlite.mjs && node scripts/test-web-server.mjs && node --import tsx scripts/test-web-storage.mjs",
     "start:web": "tsx --tsconfig docker/server/tsconfig.json docker/server/index.ts",
     "analytics:report": "tsx scripts/analytics-report.ts"
   },

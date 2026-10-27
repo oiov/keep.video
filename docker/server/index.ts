@@ -24,21 +24,10 @@ const version = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf
 const egress = await startEgress()
 const analytics = new Analytics(config)
 const jobs = new Jobs(config, egress.url, analytics)
-const sessions = new Map<string, number>()
-const analyticsSessions = new Map<string, string>()
-const sessionFile = path.join(config.dataDir, 'web-sessions.json')
-try {
-  for (const [id, expiry, analyticsId] of JSON.parse(fs.readFileSync(sessionFile, 'utf8'))) if (expiry > Date.now()) {
-    sessions.set(id, expiry); analyticsSessions.set(id, isOpaqueId(analyticsId) ? analyticsId : randomUUID())
-  }
-} catch {}
+const state = jobs.state
 function session(req: http.IncomingMessage) {
   const token = /(?:^|;\s*)keep_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1]
-  return token && (sessions.get(token) || 0) > Date.now() ? token : undefined
-}
-function saveSessions() {
-  fs.writeFileSync(sessionFile + '.part', JSON.stringify([...sessions].map(([id, expiry]) => [id, expiry, analyticsSessions.get(id)])))
-  fs.renameSync(sessionFile + '.part', sessionFile)
+  return token && state.session(token) ? token : undefined
 }
 const server = http.createServer(async (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff')
@@ -81,9 +70,9 @@ const server = http.createServer(async (req, res) => {
       res.writeHead(404).end(); return
     }
     if (isWebPage(url.pathname) && !session(req)) {
-      if (sessions.size > 10000) { res.writeHead(503).end(); return }
       const token = randomBytes(32).toString('hex')
-      sessions.set(token, Date.now() + 30 * 86400000); analyticsSessions.set(token, randomUUID()); saveSessions()
+      try { state.createSession(token, Date.now() + 30 * 86400000, randomUUID()) }
+      catch { res.writeHead(503).end(); return }
       res.setHeader('Set-Cookie', 'keep_session=' + token + '; Path=/; HttpOnly; SameSite=Strict; Max-Age=2592000' + (config.origin.startsWith('https:') ? '; Secure' : ''))
     }
     serveStatic(req, res, process.env.WEBSITE_DIST || path.join(root, 'website/dist'), process.env.DOWNVID_WEB_DIST || path.join(root, 'docker/dist-web'))
@@ -128,7 +117,7 @@ wss.on('connection', (ws, req) => {
       if (!Number.isSafeInteger(message.id) || !Array.isArray(message.args)) throw new Error('请求格式无效')
       id = message.id
       const args = message.args
-      const context = cleanContext({ ...message.context, sessionId: analyticsSessions.get(owner) })
+      const context = cleanContext({ ...message.context, sessionId: state.session(owner)?.analyticsId })
       if (message.channel === 'analytics:event') {
         if (++telemetryRequests > 60) { reply(id, false); return }
       } else if (++requests > 120) {
@@ -182,12 +171,13 @@ wss.on('connection', (ws, req) => {
     } catch (error) { reply(id, undefined, webErrorCode(error), error instanceof WebError ? error.retryAfterSeconds : undefined) }
   })
 })
+let cleaning: Promise<void> | undefined
 const cleanup = setInterval(() => {
-  void jobs.cleanup()
-  void analytics.cleanup()
-  for (const [id, expiry] of sessions) if (expiry < Date.now()) { sessions.delete(id); analyticsSessions.delete(id) }
+  if (cleaning) return
+  cleaning = Promise.all([jobs.cleanup(), analytics.cleanup()]).then(() => {
+    state.cleanupSessions()
+  }).catch(() => { console.warn('持久化数据清理失败，将在下一轮重试') }).finally(() => { cleaning = undefined })
   for (const [id, at] of browserEvents) if (Date.now() - at > 86400000) browserEvents.delete(id)
-  saveSessions()
 }, 60000)
 cleanup.unref()
 await jobs.cleanup()
@@ -201,6 +191,7 @@ async function shutdown() {
   server.close()
   for (const ws of sockets.keys()) ws.close(1001)
   try {
+    await cleaning
     await jobs.close()
     await analytics.close()
     egress.server.close()
