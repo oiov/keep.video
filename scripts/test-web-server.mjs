@@ -35,7 +35,7 @@ fs.writeFileSync(path.join(data, 'web-sessions.json'), JSON.stringify([[owner, D
 const id = 'test-file'
 const file = path.join(downloads, 'test.mp4'); fs.writeFileSync(file, '0123456789')
 fs.writeFileSync(path.join(data, 'web-jobs.json'), JSON.stringify([{ id, owner, clientId: id, url: 'https://example.com/video', title: '测试文件', createdAt: Date.now(), status: 'completed', progress: 100, localPath: file, file: { key: id, name: 'test.mp4', size: 10, driver: 'local' } }]))
-const child = spawn(process.execPath, ['--import', 'tsx', 'docker/server/index.ts'], { cwd: root, env: { ...process.env, TSX_TSCONFIG_PATH: 'docker/server/tsconfig.json', SITE_URL: origin, DOWNVID_WEB_HOST: '127.0.0.1', DOWNVID_WEB_PORT: String(port), DOWNVID_DATA_DIR: data, DOWNVID_DOWNLOADS: downloads, WEBSITE_DIST: website, DOWNVID_WEB_DIST: app, STORAGE_DRIVER: 'local', ANALYTICS_ENVIRONMENT: 'test', ANALYTICS_ENABLED: '1', WEB_PARSE_HOURLY_LIMIT: '1' }, stdio: ['ignore', 'pipe', 'pipe'] })
+const child = spawn(process.execPath, ['--import', 'tsx', 'docker/server/index.ts'], { cwd: root, env: { ...process.env, TSX_TSCONFIG_PATH: 'docker/server/tsconfig.json', SITE_URL: origin, DOWNVID_WEB_HOST: '127.0.0.1', DOWNVID_WEB_PORT: String(port), DOWNVID_DATA_DIR: data, DOWNVID_DOWNLOADS: downloads, WEBSITE_DIST: website, DOWNVID_WEB_DIST: app, STORAGE_DRIVER: 'local', ANALYTICS_ENVIRONMENT: 'test', ANALYTICS_ENABLED: '1', WEB_PARSE_HOURLY_LIMIT: '1', SEE_PASSWORD: '' }, stdio: ['ignore', 'pipe', 'pipe'] })
 let output = ''; child.stdout.on('data', d => output += d); child.stderr.on('data', d => output += d)
 const sockets = []
 const request = (route, token, headers = {}) => fetch(origin + route, { headers: { ...(token ? { Cookie: 'keep_session=' + token } : {}), ...headers }, redirect: 'manual', signal: AbortSignal.timeout(5000) })
@@ -47,6 +47,11 @@ try {
     await new Promise(resolve => setTimeout(resolve, 100))
   }
   assert(ready, output)
+  for (const route of ['/see', '/see/report.json']) {
+    const privatePage = await request(route)
+    assert.equal(privatePage.status, 404, '未配置看板密码时保持关闭')
+    assert.match(privatePage.headers.get('x-robots-tag'), /noindex/)
+  }
   assert.match(await (await request('/')).text(), /portal/)
   assert.equal((await request('/missing')).status, 404)
   assert.equal((await request('/app')).headers.get('location'), '/app/')

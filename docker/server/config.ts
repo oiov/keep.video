@@ -14,6 +14,9 @@ export function readConfig(env = process.env) {
   const dataDir = path.resolve(env.DOWNVID_DATA_DIR || 'data/userdata')
   const analyticsEnvironment = env.ANALYTICS_ENVIRONMENT || 'development'
   const localOrigin = ['localhost', '127.0.0.1', '[::1]'].includes(origin.hostname)
+  const seePassword = env.SEE_PASSWORD || ''
+  if (seePassword && (seePassword.trim().length < 16 || Buffer.byteLength(seePassword) > 1024)) throw new Error('SEE_PASSWORD 必须至少 16 个非首尾空白字符，且不超过 1024 字节')
+  if (seePassword && !localOrigin && origin.protocol !== 'https:') throw new Error('启用 /see 时非本地 SITE_URL 必须使用 HTTPS')
   if (!localOrigin && env.ANALYTICS_ENABLED !== '0' && !env.ANALYTICS_ENVIRONMENT) {
     throw new Error('非本地站点必须显式设置 ANALYTICS_ENVIRONMENT=production、development 或 test，避免统计环境误标')
   }
@@ -26,7 +29,7 @@ export function readConfig(env = process.env) {
     const endpoint = new URL(r2.endpoint)
     if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password) throw new Error('R2_ENDPOINT 必须使用 HTTPS')
   }
-  return { storage, origin: origin.origin, dataDir, workDir, r2,
+  return { storage, origin: origin.origin, dataDir, workDir, r2, seePassword,
     analyticsEnabled: env.ANALYTICS_ENABLED !== '0', analyticsEnvironment: analyticsEnvironment as 'production' | 'development' | 'test',
     analyticsRetentionDays: positive('ANALYTICS_RETENTION_DAYS', 30),
     analyticsMaxDailyBytes: positive('ANALYTICS_MAX_DAILY_MB', 16) * 1024 * 1024,

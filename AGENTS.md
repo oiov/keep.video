@@ -484,3 +484,5 @@ CHANGELOG 用 `## [Unreleased]` 段落累积改动。发布时再一次性改成
 - Web 使用 Node 22.13+ 内置 SQLite：`docker/server/state.ts` 保存会话、逐条任务及额度；`docker/server/analytics-store.ts` 使用独立统计库，故障不得阻断下载。数据库放本地持久化卷，不能放 R2／共享网络盘；当前仍只支持单实例调度。
 - 旧业务 JSON 在同一事务中一次性导入，旧统计 JSONL 按文件与行号幂等导入；保留原件，原始统计仍按保留期清理。迁移后不双写 JSON，降级到旧文件版必须恢复同批次卷备份，不能只换镜像。热备不得仅复制主数据库而丢掉 WAL。
 - `docker/server/analytics-reader.ts` 使用只读快照、SQL 去重与关联实体查询；不得只按报表窗口截断跨日终态或更早起点。`scripts/test-web-sqlite.mjs` 已并入 pnpm test:web，三个平台现有 integration job 均执行；新增测试仍须做变异反证。
+- 私有统计页 `/see` 由 `docker/server/see.ts` 在公共路由前处理；服务端 `SEE_PASSWORD` 为空时全部关闭，非本地启用必须 HTTPS。页面与聚合 JSON 共用独立 HttpOnly 会话，不能复用访客下载 Cookie；POST 校验 Origin，登录限流。所有响应禁缓存、禁索引，HTML 同时带 robots meta，不加入公开导航或 sitemap。
+- `/see` 复用独立 CLI 子进程生成报表，保持只读、单查询并发、短期有界缓存与超时，停服等待查询终止；不得改为主事件循环同步读库或开放任意 SQL、路径及业务数据库。私有页面词条为 `src/i18n/see.ts`，不引入客户端脚本或遥测；`scripts/test-see-server.mjs` 随 pnpm test:web 在三平台运行，含变异反证。

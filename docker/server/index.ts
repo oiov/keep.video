@@ -15,6 +15,7 @@ import { parseRange } from './storage'
 import { Analytics } from './analytics'
 import { cleanContext, isOpaqueId, type EventFields } from '../../shared/web-analytics'
 import { webErrorCode, WebError } from '../../shared/web-errors'
+import { createSee } from './see'
 
 process.env.KEEP_WEB_MODE = '1'
 const config = readConfig()
@@ -25,6 +26,7 @@ const egress = await startEgress()
 const analytics = new Analytics(config)
 const jobs = new Jobs(config, egress.url, analytics)
 const state = jobs.state
+const see = createSee(config, root)
 function session(req: http.IncomingMessage) {
   const token = /(?:^|;\s*)keep_session=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie || '')?.[1]
   return token && state.session(token) ? token : undefined
@@ -33,6 +35,7 @@ const server = http.createServer(async (req, res) => {
   res.setHeader('X-Content-Type-Options', 'nosniff')
   const url = new URL(req.url || '/', config.origin)
   try {
+    if (await see.handle(req, res, url)) return
     if (!['GET', 'HEAD'].includes(req.method || '')) { res.writeHead(405).end(); return }
     if (url.pathname === '/healthz') { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify({ ok: true, version })); return }
     if (url.pathname.startsWith('/api/')) {
@@ -191,6 +194,7 @@ async function shutdown() {
   server.close()
   for (const ws of sockets.keys()) ws.close(1001)
   try {
+    await see.close()
     await cleaning
     await jobs.close()
     await analytics.close()

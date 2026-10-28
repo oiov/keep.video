@@ -36,6 +36,7 @@ Web 服务与报表使用 Node 22.13+ 内置 SQLite，不需要另外部署数�
 | ANALYTICS_ENVIRONMENT | 本地 development | 非本地站点启用统计时必填；线上 production，预览显式 development 或 test |
 | ANALYTICS_RETENTION_DAYS | 30 | 1–30 个 UTC 日分区（含当日），与文件 TTL 独立 |
 | ANALYTICS_MAX_DAILY_MB | 16 | 单日事件 JSON 逻辑字节上限，超过后丢弃统计；不含 SQLite 索引、WAL 与备份开销 |
+| SEE_PASSWORD | 空 | 可选私有统计页 `/see` 的访问密码；留空关闭，至少 16 字符；非本地启用时 SITE_URL 必须为 HTTPS |
 
 local 指服务器磁盘；访客点击保存后由浏览器保存到设备下载目录。网页不能无提示写入访客任意本地目录。
 
@@ -78,4 +79,6 @@ R2 模式仍先本地下载合并，上传成功后删除工作文件。桶无�
 
 ## 本地统计
 
-统计使用持久化卷中的独立 SQLite 与离线报表，不新增公开接口或管理后台。原有 `analytics:report --dir` 参数不变，未迁移的 JSONL 目录仍能只读导出；存在 SQLite 时不再重复统计原件，数据库损坏也不会静默回退为旧 JSONL。指标定义、隐私边界、导出和回退见 [下载漏斗统计](analytics.md)。上线前设置 `ANALYTICS_ENVIRONMENT=production`；历史误标事件不会自动修改，须显式按其原环境单独导出并注明口径。
+统计使用持久化卷中的独立 SQLite 与离线报表，不新增未鉴权的统计接口。原有 `analytics:report --dir` 参数不变，未迁移的 JSONL 目录仍能只读导出；存在 SQLite 时不再重复统计原件，数据库损坏也不会静默回退为旧 JSONL。指标定义、隐私边界、导出和回退见 [下载漏斗统计](analytics.md)。上线前设置 `ANALYTICS_ENVIRONMENT=production`；历史误标事件不会自动修改，须显式按其原环境单独导出并注明口径。
+
+需要在线查看时，在服务端 `.env` 设置高强度随机 `SEE_PASSWORD`，并用 `docker compose up -d --force-recreate website` 重新创建容器，再访问 `/see`。不通过普通访客 Cookie 授权，不开放业务数据库；看板和 JSON 导出均需独立登录，登录尝试限流、8 小时会话、禁缓存及禁索引。保持 HTTPS 反代及源站回环绑定，禁止代理覆盖 `X-Robots-Tag` 或缓存 `/see` 响应；SITE_URL 必须与浏览器地址一致才能通过 Origin 校验。留空密码并重建容器可关闭，更换密码或重启会使旧登录失效。详细边界与指标口径见 [私有在线统计页](analytics.md#私有在线统计页-see)。
