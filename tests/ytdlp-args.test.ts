@@ -105,6 +105,18 @@ describe('buildYtdlpArgs', () => {
     expect(args).not.toContain('--ffmpeg-location')
   })
 
+  it('纯字幕在 after_video 输出转换后的路径，不等待被跳过的 after_move', () => {
+    const args = buildYtdlpArgs({ ...base, downloadMode: 'subtitle', subtitles: ['zh-Hans'] }, OUT_DIR, { ...ctx, ffmpegLocation: '' })
+    expect(valueAfter(args, '--print')).toBe('after_video:[dvsubs]%(requested_subtitles)j')
+  })
+
+  it('视频和音频仍在 after_move 输出最终媒体路径', () => {
+    for (const downloadMode of ['video', 'audio'] as const) {
+      const args = buildYtdlpArgs({ ...base, downloadMode, subtitles: ['en'] }, OUT_DIR, ctx)
+      expect(valueAfter(args, '--print')).toBe('after_move:[dvfile]%(filepath)s')
+    }
+  })
+
   it('音频模式：转 mp3 且写入 id3v1 标签（兼容旧播放器）', () => {
     const args = buildYtdlpArgs({ ...base, downloadMode: 'audio' }, OUT_DIR, ctx)
     expect(args).toContain('-x')

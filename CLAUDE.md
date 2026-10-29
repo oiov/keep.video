@@ -274,7 +274,9 @@ Implementation lives in `electron/download/`; `electron/ipc/download.ts` only di
 - **`ytdlp.ts`**: `spawn(yt-dlp)`, using `--load-info-json <parse cacheFile>` when the parse is
   < 20 min old (falls back to the URL if it fails before downloading starts). Progress comes from
   `--progress-template` lines prefixed `[dvp]` (stdout) / `[dvpp]` (postprocess — **stderr** under
-  the quiet mode `--print` implies); final path from `--print after_move`. Format selector,
+  the quiet mode `--print` implies); video/audio final paths come from `--print after_move`.
+  Subtitle-only downloads must use `--print after_video` for converted subtitle paths:
+  `--skip-download` skips `after_move`, otherwise files are created but the returned path is empty. Format selector,
   audio-only, subtitle-only and YouTube multi-audio-track are assembled in `buildYtdlpArgs`.
 - **`progress.ts`**: shared broadcast + throttle (≤1 IPC per 200 ms per task). Progress formatting is
   defined here only — don't duplicate it.

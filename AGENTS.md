@@ -292,7 +292,9 @@ libmp3lame / aac / libx264。**代价**：上游不公布校验值，`deps:manif
 - **`ytdlp.ts`**：`spawn(yt-dlp)`。解析结果 20 分钟内用 `--load-info-json` 跳过二次提取
   （尚未开始下载即失败则回退为 URL）。进度来自 `--progress-template` 输出的
   `[dvp]`（stdout）/ `[dvpp]`（后处理，`--print` 隐含 quiet 时走 **stderr**）行，
-  最终路径由 `--print after_move` 给出。format selector、audio-only、subtitle-only、
+  视频与音频最终路径由 `--print after_move` 给出；纯字幕必须用 `--print after_video`
+  输出转换后的字幕路径（`--skip-download` 不执行 `after_move`，否则文件已生成却回传空路径）。
+  format selector、audio-only、subtitle-only、
   YouTube 多音轨都在 `buildYtdlpArgs` 里组装。
 
 `buildYtdlpArgs` 是**纯函数**：依赖路径与 JS 运行时由调用方解析后传入（`BuildArgsContext`），

@@ -274,6 +274,63 @@ async function preparingChecks() {
   console.log('通过：探测/准备期间暂停不会事后启动下载进程')
 }
 
+async function subtitleChecks(sources = {}) {
+  const dir = fs.mkdtempSync(path.join(temp, 'subtitles-'))
+  const contents = '1\n00:00:00,000 --> 00:00:01,000\n字幕测试\n\n'
+  const files = { en: path.join(dir, '字幕测试.en.srt'), 'zh-Hans': path.join(dir, '字幕测试.zh-Hans.srt') }
+  const activeDownloads = new Map()
+  const load = loader({
+    'electron/store.ts': { activeDownloads },
+    'electron/utils/binary.ts': { resolveDependency: async () => 'fixture-tool', getFfmpegLocation: () => '' },
+    'electron/parsers/ytdlp.ts': { getExtractorArgs: () => [] },
+    'electron/parsers/info-cache.ts': { retainInfoFile: () => () => {} },
+    'electron/download/progress.ts': { sendDownloadProgress: () => {}, clearProgressThrottle: () => {} },
+    'electron/utils/cookies.ts': { getCookieAttempts: () => [], runWithCookies: async (_attempts, run) => ({ ...await run([]), failedBrowsers: [] }) },
+    'electron/download/process-tree.ts': { treeSpawnOptions: () => ({}) },
+    'node:child_process': { spawn: (_file, args) => {
+      const child = new EventEmitter()
+      child.stdout = new EventEmitter(); child.stderr = new EventEmitter()
+      queueMicrotask(() => {
+        for (const file of Object.values(files)) fs.writeFileSync(file, contents)
+        // --skip-download 会生成字幕，但不执行 after_move；after_video 才有转换后的路径。
+        const output = args[args.indexOf('--print') + 1]
+        if (output.startsWith('after_video:')) {
+          const line = '[dvsubs]' + JSON.stringify({
+            unavailable: { ext: 'vtt' },
+            en: { ext: 'srt', filepath: files.en },
+            'zh-Hans': { ext: 'srt', filepath: files['zh-Hans'] },
+          })
+          child.stdout.emit('data', Buffer.from(line.slice(0, 12)))
+          child.stdout.emit('data', Buffer.from(line.slice(12)))
+        }
+        child.emit('close', 0)
+      })
+      return child
+    } },
+  }, {}, sources)
+  const runtime = load('electron/download/ytdlp.ts')
+  try {
+    for (const [subtitles, expected] of [[['zh-Hans', 'en'], files['zh-Hans']], [['en'], files.en], [[], files.en]]) {
+      const result = await runtime.runYtdlpDownload({ taskId: 'subtitle', url: 'https://example.com/video', formatId: 'subtitle',
+        downloadMode: 'subtitle', subtitles, acceleration: { enabled: false }, outputDir: dir }, dir)
+      assert.equal(result.code, 0)
+      assert.equal(result.filePath, expected, '纯字幕成功时必须返回所选语言转换后的实际文件，不能只生成文件却回传空路径')
+      assert.equal(fs.readFileSync(result.filePath, 'utf8'), contents)
+      assert.equal(activeDownloads.size, 0)
+    }
+  } finally { fs.rmSync(dir, { recursive: true, force: true }) }
+}
+
+async function subtitleRegressionChecks() {
+  await subtitleChecks()
+  const file = 'electron/download/ytdlp.ts'
+  const source = fs.readFileSync(file, 'utf8')
+  const before = 'after_video:${SUBS_PREFIX}'
+  assert.ok(source.includes(before), '字幕输出阶段的变异落点必须存在')
+  await assert.rejects(subtitleChecks({ [file]: source.replace(before, 'after_move:${SUBS_PREFIX}') }), '恢复错误的字幕输出阶段必须被回归用例拦住')
+  console.log('通过：纯字幕成品路径、带连字符语言、分块输出收尾及输出阶段变异反证')
+}
+
 async function treeChecks(sources = {}) {
   let now = 0, alive = true
   const signals = []
@@ -445,6 +502,7 @@ try {
   await storeChecks()
   await ipcChecks()
   await preparingChecks()
+  await subtitleRegressionChecks()
   await reliabilityChecks()
   await import('./test-parse-integration.mjs')
 } finally { fs.rmSync(temp, { recursive: true, force: true }) }

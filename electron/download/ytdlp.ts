@@ -124,10 +124,10 @@ export function buildYtdlpArgs(options: DownloadOptions, outputDir: string, ctx:
 
   const args: string[] = [
     '-o', outputTemplate, '--no-playlist', '--playlist-items', '1', '--encoding', 'utf-8',
-    // --print 隐含 --quiet，用 --progress 保留进度输出，最终路径由 after_move 精确给出
+    // --print 隐含 --quiet，用 --progress 保留进度输出，视频与音频最终路径由 after_move 精确给出
     '--newline', '--progress', '--progress-template', PROGRESS_TEMPLATE, '--progress-template', POSTPROCESS_TEMPLATE,
-    // 字幕模式没有视频文件，改为输出字幕信息（语言代码可能含 '-'，不能直接写进字段路径）
-    '--print', isSubtitleOnly ? `after_move:${SUBS_PREFIX}%(requested_subtitles)j` : `after_move:${FILE_PREFIX}%(filepath)s`,
+    // 纯字幕会跳过 after_move，改在 after_video 输出转换后的字幕信息；语言代码可能含 '-'。
+    '--print', isSubtitleOnly ? `after_video:${SUBS_PREFIX}%(requested_subtitles)j` : `after_move:${FILE_PREFIX}%(filepath)s`,
     // HLS/DASH 分片并发下载（仅对分片流生效，对单个 mp4 直链无效）
     '--concurrent-fragments', String(connections),
     // 分块请求：规避"单连接被限速"。
