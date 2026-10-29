@@ -82,6 +82,20 @@
 .web-faq details p{padding-bottom:20px}
 .web-note{margin:32px 0 14px}
 .web-note a{margin-left:8px;color:var(--ink);text-decoration:underline;text-underline-offset:3px}
+.web-table-section{padding:6px 0 48px}
+.web-table-section h2{font-size:27px;font-weight:600;letter-spacing:-.035em;line-height:1.35;margin-bottom:16px}
+.web-table-section>p{font-size:14px;line-height:1.8;color:var(--muted);max-width:720px}
+.web-table-scroll{margin-top:22px;border:1px solid var(--line);border-radius:8px;overflow-x:auto;background:color-mix(in srgb,var(--paper) 60%,white)}
+.web-table{width:100%;border-collapse:collapse;font-size:14px;line-height:1.7;text-align:left}
+.web-table caption{caption-side:top;text-align:left;padding:0 0 12px}
+.web-table th,.web-table td{padding:16px 20px;vertical-align:top;border-top:1px solid var(--line)}
+.web-table thead th{font-size:11px;letter-spacing:.1em;font-weight:600;color:var(--muted);border-top:0;background:color-mix(in srgb,var(--ink) 4%,transparent)}
+.web-table tbody th{width:110px;white-space:nowrap}
+.web-table tbody th code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;font-weight:650;letter-spacing:.04em}
+.web-table td{color:var(--muted)}
+.web-platforms{display:flex;flex-wrap:wrap;gap:10px;list-style:none;margin:24px 0 0;padding:0}
+.web-platforms a{display:inline-flex;align-items:center;gap:6px;padding:11px 16px;border:1px solid var(--line);border-radius:6px;font-size:13px;font-weight:600;line-height:1.3;background:color-mix(in srgb,var(--paper) 55%,white);transition:border-color .2s,color .2s}
+.web-platforms a:hover{border-color:var(--orange);color:#a7411f}
 @media(max-width:1000px){
  .header{gap:22px}.header nav:not(.language-options){gap:18px}.header-actions{gap:8px}
 }
@@ -95,6 +109,9 @@
  .web-info{padding:38px 0 45px}.web-info h2{font-size:23px}.online-steps{grid-template-columns:1fr;gap:25px;margin:25px 0 32px}
  .step-number{margin-bottom:8px}.online-steps h3{margin-bottom:6px}
  .web-faq{grid-template-columns:1fr;gap:12px;padding-top:26px}
+ .web-table-section{padding-bottom:36px}.web-table-section h2{font-size:23px}
+ .web-table-scroll{margin-top:18px}.web-table{font-size:13px}.web-table th,.web-table td{padding:13px 14px}
+ .web-table tbody th{width:auto;white-space:normal}.web-platforms{gap:8px;margin-top:20px}.web-platforms a{padding:10px 13px;font-size:12px}
  .online-banner{align-items:flex-start;flex-direction:column;padding:22px}.online-banner h2{font-size:22px}
 }
 @media(max-width:420px){
