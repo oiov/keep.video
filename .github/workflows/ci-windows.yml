@@ -31,6 +31,9 @@ env:
   GOTOOLCHAIN: local
 
 jobs:
+  desktop-changes:
+    uses: ./.github/workflows/desktop-changes.yml
+
   backend:
     name: 后端 · Go 侧车（Windows）
     runs-on: windows-latest
@@ -201,6 +204,8 @@ jobs:
 
   package:
     name: 打包 · 产物内容校验（Windows）
+    needs: desktop-changes
+    if: needs.desktop-changes.outputs.desktop == 'true'
     runs-on: windows-latest
     timeout-minutes: 35
     steps:

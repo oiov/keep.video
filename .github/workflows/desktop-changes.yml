@@ -1,0 +1,29 @@
+name: 桌面打包变更检测
+
+on:
+  workflow_call:
+    outputs:
+      desktop:
+        description: 是否需要执行桌面打包
+        value: ${{ jobs.detect.outputs.desktop }}
+
+permissions:
+  contents: read
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      desktop: ${{ steps.changes.outputs.desktop }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # push 比较整次推送，PR 比较合并基点；不能只看最后一个提交。
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+      - id: changes
+        name: 检测桌面代码与构建输入
+        run: node scripts/desktop-ci.mjs

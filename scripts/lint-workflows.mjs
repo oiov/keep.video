@@ -21,6 +21,7 @@
  *   3. `run` 里出现 `go ` → 必须有 `actions/setup-go`
  *   4. 每个 job 必须有 `timeout-minutes`：卡住的 job 会占满 6 小时配额
  *      （runner 默认 360 分钟），仓库里所有 job 都显式设了超时，保持一致
+ *   5. 三平台的桌面打包必须依赖共用变更检测，不能退回每次提交都打包
  *
  * 用法：node scripts/lint-workflows.mjs
  */
@@ -91,6 +92,17 @@ if (!files.length) {
 for (const file of files) {
   const text = fs.readFileSync(path.join(DIR, file), 'utf8')
   const jobs = jobsOf(text)
+  if (/^ci-(linux|macos|windows)\.yml$/.test(file)) {
+    const changes = jobs.find(job => job.name === 'desktop-changes')
+    const packaging = jobs.find(job => job.name === 'package' || job.name === 'packaging')
+    if (!changes || !/^\s+uses: \.\/\.github\/workflows\/desktop-changes\.yml\s*$/m.test(changes.body)) {
+      problems.push(`${file} 必须调用共用的桌面打包变更检测工作流`)
+    }
+    if (!packaging || !/^\s+needs: desktop-changes\s*$/m.test(packaging.body)
+      || !/^\s+if: needs\.desktop-changes\.outputs\.desktop == 'true'\s*$/m.test(packaging.body)) {
+      problems.push(`${file} 的桌面打包必须由 desktop-changes 输出控制，不能每次提交都打包`)
+    }
+  }
   if (!jobs.length) {
     notes.push(`${file}：未解析出 job（可能格式特殊，本脚本跳过）`)
     continue
@@ -140,4 +152,4 @@ if (problems.length) {
   process.exit(1)
 }
 
-console.log(`工作流健全性校验通过：${files.length} 个工作流，工具与安装步骤成对、job 均设了超时。`)
+console.log(`工作流健全性校验通过：${files.length} 个工作流，工具安装、job 超时与桌面打包门禁均有效。`)

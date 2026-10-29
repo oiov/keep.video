@@ -67,6 +67,14 @@ Tests are split into three per-platform workflows (`.github/workflows/ci-linux.y
 | `native-runtime` | Windows only: native exe runtime-deps regression |
 | `package` / `packaging` | build / pack to a directory / artifact contents / manifest & release-notes script self-checks |
 
+For routine pushes / PRs, `.github/workflows/desktop-changes.yml` calls
+`scripts/desktop-ci.mjs` to gate desktop packaging. Website-only, Docker-server-only or docs-only
+changes skip the three platforms' `package` / `packaging` jobs; all other tests still run.
+`src/`, `electron/`, `backend/`, `shared/`, desktop assets, dependencies and build configuration
+still trigger packaging. Update the filter and `tests/desktop-ci.test.ts` when adding desktop
+build inputs. Manual runs always package, detection failures conservatively package, and tagged
+releases remain unchanged.
+
 **Every new test script must be wired into all three per-platform workflows** — `test:acceleration`
 was once added without CI wiring and the acceleration logic went unverified for a long time. Likewise
 **`git add` a new workflow file before committing**: when the single test workflow was split into

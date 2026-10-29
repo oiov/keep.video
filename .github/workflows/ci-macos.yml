@@ -31,6 +31,9 @@ env:
   GOTOOLCHAIN: local
 
 jobs:
+  desktop-changes:
+    uses: ./.github/workflows/desktop-changes.yml
+
   backend:
     name: 后端 · Go 侧车（macOS）
     runs-on: macos-latest
@@ -159,6 +162,8 @@ jobs:
   # ===== macOS 专属：未签名应用的启动与更新 =====
   packaging:
     name: 打包 · 未签名 .app 与产物内容
+    needs: desktop-changes
+    if: needs.desktop-changes.outputs.desktop == 'true'
     runs-on: macos-latest
     timeout-minutes: 40
     steps:

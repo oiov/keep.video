@@ -67,6 +67,12 @@ pnpm build                                     # 端到端：vue-tsc + vite buil
 | `native-runtime` | 仅 Windows：原生 exe 运行依赖回归 |
 | `package` / `packaging` | 构建 / 打包到目录 / 产物内容校验 / 清单与 Release 正文脚本自检 |
 
+日常 push / PR 的桌面打包由 `.github/workflows/desktop-changes.yml` 调用
+`scripts/desktop-ci.mjs` 统一判断；仅改官网、Docker 服务端或文档时跳过三平台的
+`package` / `packaging`，其余测试照常运行。`src/`、`electron/`、`backend/`、`shared/`、
+桌面资源、依赖与构建配置仍会触发打包；新增桌面构建输入必须同步筛选规则及
+`tests/desktop-ci.test.ts`。手动运行始终打包，检测失败保守打包，正式 tag 发布不受影响。
+
 **新增测试脚本必须挂到对应平台的三个工作流上** —— 曾经 `test:acceleration` 加了脚本却没接进 CI，
 加速逻辑长期没有自动化验证。同理，**新增工作流文件时必须先 `git add`**：曾有一次把单一的测试
 工作流拆成 `.github/workflows/ci-linux.yml` / `.github/workflows/ci-macos.yml` /
