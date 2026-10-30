@@ -118,6 +118,12 @@
  .header .brand{font-size:0;gap:0}.header .brand-icon{width:31px;height:31px}.header-actions{gap:4px}
  .language-picker summary{max-width:145px}
 }
+.article #app.tool-slot{margin:44px 0 8px}
+/* 内容页正文栏只有 760px，工具的两栏布局在里面会被挤窄；宽屏时让它突破正文栏，
+   窄屏维持原宽，避免出现横向滚动。 */
+@media(min-width:1080px){
+ .article #app.tool-slot{width:min(1120px,100vw - 96px);margin-right:0;margin-left:calc(50% - min(560px,(100vw - 96px)/2))}
+}
 .article .online-workflow h3,.article .desktop-workflow>section{margin-top:28px}.article .online-workflow h3,.article .desktop-workflow h3{font-size:20px;line-height:1.5;letter-spacing:-.025em}.article .online-workflow .button{margin-top:24px}
 
 /* 功能展示用开放分栏和桌面能力带，沿用官网色彩，不模拟下载进度。 */

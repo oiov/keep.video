@@ -468,7 +468,7 @@ under `## [Unreleased]`. When releasing, rewrite it to `## [x.y.z] - <date>` and
 
 ## 单站点服务器模式
 
-- scripts/build-website.mjs 生成 117 个 SEO 页面，docker/web/ 构建工具，docker/server/ 同域托管；/app/ 和 /api/ 不覆盖门户。
+- scripts/build-website.mjs 生成 144 个 SEO 页面，docker/web/ 构建工具，docker/server/ 同域托管；/app/ 和 /api/ 不覆盖门户。
 - pnpm build:web 构建两份产物；pnpm test:web 验证会话、私有文件与路由，三个平台 integration job 均运行。镜像工作流 .github/workflows/docker.yml 替代 Worker 部署。
 - STORAGE_DRIVER=local|r2 选择存储；R2_ENDPOINT、R2_BUCKET、R2_ACCESS_KEY_ID、R2_SECRET_ACCESS_KEY 仅服务端读取。R2 仍需本地工作目录与持久化业务数据库。详见 docs/server-deployment.md。
 - 服务端负责全局队列和匿名会话隔离，不能公开桌面管理 IPC；仅接受服务端解析出的格式。成品经 /api/files/:id 授权交付。

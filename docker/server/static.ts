@@ -10,7 +10,7 @@ export function serveStatic(req: IncomingMessage, res: ServerResponse, website: 
   if (url.pathname === '/zh-cn' || url.pathname.startsWith('/zh-cn/')) return redirect('/zh' + url.pathname.slice(6) + (url.pathname === '/zh-cn' ? '/' : ''))
   if (url.pathname === '/en' || url.pathname.startsWith('/en/')) return redirect(url.pathname.slice(3) || '/')
   // HTML 由统一门户生成；仅脚本与构建资源使用 WebUI 输出目录。
-  const isAppAsset = url.pathname === '/app/entry.js' || url.pathname.startsWith('/app/assets/')
+  const isAppAsset = url.pathname === '/app/entry.js' || url.pathname === '/app/tool.js' || url.pathname.startsWith('/app/assets/')
   const root = path.resolve(isAppAsset ? app : website)
   let pathname: string
   try { pathname = decodeURIComponent(isAppAsset ? url.pathname.slice(5) : url.pathname) } catch { res.writeHead(400).end(); return }
@@ -28,7 +28,7 @@ export function serveStatic(req: IncomingMessage, res: ServerResponse, website: 
   }
   if (!fs.existsSync(file)) { res.writeHead(404).end(); return }
   const ext = path.extname(file)
-  res.writeHead(status, { 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ext === '.html' || url.pathname === '/app/entry.js' ? 'no-cache' : 'public, max-age=3600' })
+  res.writeHead(status, { 'Content-Type': mime[ext] || 'application/octet-stream', 'Cache-Control': ext === '.html' || isAppAsset ? 'no-cache' : 'public, max-age=3600' })
   if (req.method === 'HEAD') { res.end(); return }
   fs.createReadStream(file).on('error', () => res.destroy()).pipe(res)
 }

@@ -1,6 +1,9 @@
 // 官网抓取与发布模式回归；复用已有三个平台 CI 的 lint:website 入口。
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
+import { readFileSync } from 'node:fs'
+const landingRoutes = ['app', 'save-video', 'save-video-from-twitter', 'save-video-from-facebook']
+const toolRoutes = JSON.parse(readFileSync(new URL('../shared/tool-routes.json', import.meta.url), 'utf8'))
 import path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
@@ -57,7 +60,7 @@ function checkUmamiTag(html,enabled) {
 }
 function checkGooglePages(enabled) {
  const pages=files(out).filter(file=>file.endsWith('index.html'))
- assert.equal(pages.length,117)
+ assert.equal(pages.length,144)
  for(const file of pages) { const html=fs.readFileSync(file,'utf8'); checkGoogleTag(html,enabled); checkUmamiTag(html,enabled) }
 }
 // 每种语言独立锁定双端定位，不能只验证词条存在或从生产文案生成预期值。
@@ -86,7 +89,7 @@ function checkCapabilities(html, prefix, language) {
 try {
  build({SITE_URL:'https://seo-check.test'})
  const pages=files(out).filter(f=>f.endsWith('index.html'))
- assert.equal(pages.length,117)
+ assert.equal(pages.length,144)
  for(const platform of ['youtube','bilibili','tiktok','instagram','vimeo']) for(const prefix of ['', 'zh/', 'es/', 'pt-br/', 'de/', 'fr/', 'ja/', 'ko/', 'ru/']) {
   const html=fs.readFileSync(path.join(out,prefix+platform+'-video-downloader/index.html'),'utf8')
   assert(html.includes('support@keep.video'))
@@ -137,17 +140,29 @@ try {
   for(const m of html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)) JSON.parse(m[1])
   assert(!html.includes('cloud.umami.is'),'自部署校验域名不加载 Umami')
   checkGoogleTag(html,false)
-  if(route.endsWith('/app/')) {
-   assert.equal((html.match(/<script[^>]+src=/g)||[]).length,1)
-   assert(html.includes('src="/app/entry.js"'))
-   assert(html.includes('"@type":"WebApplication"') && html.includes('"@type":"FAQPage"'))
-   assert(html.includes('class="online-steps"') && html.includes('<noscript>'))
-   assert(!html.includes('"@type":"Article"'))
+  // 带工具的页面（/app/ 与落地页）必须只加载一个入口脚本、带工具本体与问答结构化数据。
+  const toolSlug = toolRoutes.find(slug => route.endsWith('/' + slug + '/'))
+  if(toolSlug) {
+   const landing = landingRoutes.includes(toolSlug)
+   const entryName = toolSlug === 'app' ? 'entry' : 'tool'
+   assert.equal((html.match(/<script[^>]+src=/g)||[]).length,1,'工具页只能有一个入口脚本')
+   assert(html.includes('src="/app/' + entryName + '.js"'),'入口脚本不对：' + route)
+   assert(html.includes('id="app"'),'缺少工具挂载点：' + route)
+   assert(html.includes('<noscript>'),'缺少 noscript 兜底：' + route)
+   assert(html.includes('"@type":"WebApplication"'),'带工具的页面需要 WebApplication：' + route)
+   if(landing) {
+    assert(html.includes('"@type":"FAQPage"'),'落地页需要 FAQPage：' + route)
+    assert(html.includes('class="online-steps"'),'落地页需要步骤说明：' + route)
+    assert(!html.includes('"@type":"Article"'),'落地页不应标为文章：' + route)
+   } else {
+    // 带工具的内容页仍是文章：正文与工具并存，两种类型都要有。
+    assert(html.includes('"@type":"Article"'),'带工具的内容页应保留 Article：' + route)
+   }
   } else assert.equal((html.match(/<script[^>]+src=/g)||[]).length,0,'门户非生产页面不应加载统计脚本')
   for(const m of html.matchAll(/(?:href|src)="([^"#]+)(?:#[^"]*)?"/g)){
    const href=m[1]
    if(!href.startsWith('/'))continue
-   if(href === '/app/entry.js')continue
+   if(href === '/app/entry.js' || href === '/app/tool.js')continue
    const target=path.join(out,href.endsWith('/')?href+'index.html':href)
    assert(fs.existsSync(target),'损坏的内链/资源：'+href)
   }
@@ -157,7 +172,7 @@ try {
   }
  }
  const sitemap=fs.readFileSync(path.join(out,'sitemap.xml'),'utf8')
- assert.equal((sitemap.match(/<loc>/g)||[]).length,117)
+ assert.equal((sitemap.match(/<loc>/g)||[]).length,144)
  assert(fs.readFileSync(path.join(out,'robots.txt'),'utf8').includes('Sitemap: https://seo-check.test/sitemap.xml'))
  const social=fs.readFileSync(path.join(out,'assets/social.png'))
  assert.equal(social.readUInt32BE(16),1200);assert.equal(social.readUInt32BE(20),630)
@@ -180,5 +195,5 @@ try {
  assert(!preview.includes('hreflang="x-default"'))
  assert(!fs.readFileSync(path.join(out,'sitemap.xml'),'utf8').includes('<loc>'))
  for(const invalid of ['http://site.test','https://site.test/path','https://site.test?key=a','https://user:password@site.test','https://example.com'])assert.throws(()=>build({SITE_URL:invalid}))
- console.log('官网校验通过：117 个九语言页面、独立元数据、语言回链、JSON-LD、资源、生产/预览模式、GA4 来源隔离与域名校验。')
+ console.log('官网校验通过：144 个九语言页面、独立元数据、语言回链、JSON-LD、资源、生产/预览模式、GA4 来源隔离与域名校验。')
 } finally {execFileSync(process.execPath,['scripts/build-website.mjs'],{cwd:root,stdio:'pipe'})}

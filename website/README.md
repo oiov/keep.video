@@ -1,6 +1,6 @@
 # Keep Video 网站
 
-默认英语位于根目录。简体中文 /zh/、西班牙语 /es/、巴西葡萄牙语 /pt-br/、德语 /de/、法语 /fr/、日语 /ja/、韩语 /ko/、俄语 /ru/。共 117 个静态页面，语言选择保留当前页面，旧 /en/ 地址永久跳转到根目录对应页面。
+默认英语位于根目录。简体中文 /zh/、西班牙语 /es/、巴西葡萄牙语 /pt-br/、德语 /de/、法语 /fr/、日语 /ja/、韩语 /ko/、俄语 /ru/。共 144 个静态页面，语言选择保留当前页面，旧 /en/ 地址永久跳转到根目录对应页面。
 
 node scripts/build-website.mjs 构建，node scripts/serve-website.mjs 本地预览，node scripts/lint-website.mjs 校验。Cloudflare Workers 通过 GitHub Actions 自动部署，正式域名 https://keep.video，联系邮箱 support@keep.video。
 
