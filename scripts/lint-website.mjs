@@ -142,6 +142,7 @@ try {
   assert.equal((html.match(/<link rel="alternate"/g)||[]).length,10)
   assert.equal((html.match(/class="language-options"/g)||[]).length,1)
   assert(!html.includes('downvid-coral')&&!html.includes('raw.githubusercontent.com'))
+  assert(!html.includes('data-promotion')&&!html.includes('/assets/promotion.js'),'所有页面不得显示顶部推广横幅或加载轮播脚本')
   for(const m of html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/g)) JSON.parse(m[1])
   assert(!html.includes('cloud.umami.is'),'自部署校验域名不加载 Umami')
   checkGoogleTag(html,false)
@@ -150,7 +151,7 @@ try {
   if(toolSlug) {
    const landing = landingRoutes.includes(toolSlug)
    const entryName = toolSlug === 'app' ? 'entry' : 'tool'
-   assert.equal((html.match(/<script[^>]+src=/g)||[]).length,3,'工具页只加载公共登录、推广脚本与一个工具入口')
+   assert.equal((html.match(/<script[^>]+src=/g)||[]).length,2,'工具页只加载公共登录脚本与一个工具入口')
    assert(html.includes('src="/app/' + entryName + '.js"'),'入口脚本不对：' + route)
    assert(html.includes('id="app"'),'缺少工具挂载点：' + route)
    // 首轮 HTML 必须已有可提交的表单，不能只有等待脚本注入的占位。
@@ -163,7 +164,7 @@ try {
     assert(html.includes('"@type":"FAQPage"'),'落地页需要 FAQPage：' + route)
     assert(html.includes('class="online-steps"'),'落地页需要步骤说明：' + route)
    }
-  } else assert.equal((html.match(/<script[^>]+src=/g)||[]).length,2,'门户非生产页面只加载公共登录与推广脚本')
+  } else assert.equal((html.match(/<script[^>]+src=/g)||[]).length,1,'门户非生产页面只加载公共登录脚本')
   for(const m of html.matchAll(/(?:href|src)="([^"#]+)(?:#[^"]*)?"/g)){
    const href=m[1]
    if(!href.startsWith('/'))continue

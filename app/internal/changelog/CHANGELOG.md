@@ -3,6 +3,8 @@
 ## [Unreleased]
 
 ### 改进
+- 官网页脚：移除 AttachReady 与 Nbility 外链，补充在线保存视频、YouTube、X / Twitter、Facebook 工具及故障排查的站内入口，九语言链接跟随当前页面。
+- 官网与在线工具：隐藏所有语言页面顶部的 Nbility 广告横幅，并停止加载轮播脚本。
 - 官网：在线工具页（/app/、保存视频落地页与 YouTube 页）的首轮 HTML 直接带可提交的链接表单，不再只显示「正在加载在线工具」占位；脚本加载前已粘贴的链接会在工具挂载后保留。嵌入工具的 YouTube 页改标为应用页（去掉 Article 结构化数据，og:type 改为 website）。首页新增「保存视频」落地页入口，X / Twitter 标志改为指向对应落地页。
 
 ### 修复
