@@ -47,7 +47,6 @@ export const online = {
   browserFeature: ['浏览器即可使用，支持手机和电脑', 'Use your browser on a phone or computer'],
   desktopNote: ['更喜欢本地处理？桌面版同样可用。', 'Prefer local processing? The desktop app is here too.'],
   noscript: ['在线表单需要 JavaScript。请启用 JavaScript 后刷新，或使用桌面版。', 'The online form needs JavaScript. Enable it and refresh, or use the desktop app.'],
-  loading: ['正在加载在线工具…', 'Loading the online tool…'],
   faq: ['在线使用常见问题', 'A few things to know before you download.'],
   tryNow: ['直接在浏览器中开始，也可以选择桌面版。', 'Start right in your browser, or choose the desktop app.'],
 }

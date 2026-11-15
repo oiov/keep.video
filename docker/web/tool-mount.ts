@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import '../../src/style.css'
 import ToolApp from '../../src/components/ToolApp.vue'
+import { takeFallbackInput } from './fallback-form'
 
 /**
  * 工具挂载本体。由 tool-entry.ts 动态导入：
@@ -23,4 +24,6 @@ app.config.errorHandler = (err, _instance, info) => {
   console.error('[Vue Error]', err, info)
 }
 
+const restoreInput = takeFallbackInput()
 app.mount('#app')
+restoreInput()

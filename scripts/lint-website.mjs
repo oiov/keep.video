@@ -108,7 +108,12 @@ try {
   const title=html.match(/<title>(.*?)<\/title>/)?.[1]
   const description=html.match(/name="description" content="([^"]+)"/)?.[1]
   const language=route.split('/')[1] in modeWords?route.split('/')[1]:'en'
-  if(route==='/'||Object.keys(modeWords).some(prefix=>route==='/'+prefix+'/')) checkCapabilities(html,language==='en'?'':language+'/',language)
+  if(route==='/'||Object.keys(modeWords).some(prefix=>route==='/'+prefix+'/')) {
+   const prefix=language==='en'?'':language+'/'
+   checkCapabilities(html,prefix,language)
+   // 首页把「保存视频」类需求词交给落地页，不能只靠首页自己去排。
+   assert(html.includes('href="/'+prefix+'save-video/"'),'首页缺少保存视频落地页入口：'+route)
+  }
   const article=route.includes('-video-downloader/')||/\/guides\/[^/]+\/$/.test(route)
   if(route.includes('-video-downloader/')||route.endsWith('/guides/getting-started/')) {
    for(const word of modeWords[language]) {
@@ -148,15 +153,15 @@ try {
    assert.equal((html.match(/<script[^>]+src=/g)||[]).length,3,'工具页只加载公共登录、推广脚本与一个工具入口')
    assert(html.includes('src="/app/' + entryName + '.js"'),'入口脚本不对：' + route)
    assert(html.includes('id="app"'),'缺少工具挂载点：' + route)
+   // 首轮 HTML 必须已有可提交的表单，不能只有等待脚本注入的占位。
+   assert(html.includes('<form class="hero-form tool-fallback" action="' + route + '" method="get"'),'工具挂载点缺少提交回本页的静态表单：' + route)
+   assert(!html.includes('app-loading'),'工具挂载点不得退回加载占位：' + route)
    assert(html.includes('<noscript>'),'缺少 noscript 兜底：' + route)
    assert(html.includes('"@type":"WebApplication"'),'带工具的页面需要 WebApplication：' + route)
+   assert(!html.includes('"@type":"Article"')&&html.includes('property="og:type" content="website"'),'带工具的页面是应用页，不应标为文章：' + route)
    if(landing) {
     assert(html.includes('"@type":"FAQPage"'),'落地页需要 FAQPage：' + route)
     assert(html.includes('class="online-steps"'),'落地页需要步骤说明：' + route)
-    assert(!html.includes('"@type":"Article"'),'落地页不应标为文章：' + route)
-   } else {
-    // 带工具的内容页仍是文章：正文与工具并存，两种类型都要有。
-    assert(html.includes('"@type":"Article"'),'带工具的内容页应保留 Article：' + route)
    }
   } else assert.equal((html.match(/<script[^>]+src=/g)||[]).length,2,'门户非生产页面只加载公共登录与推广脚本')
   for(const m of html.matchAll(/(?:href|src)="([^"#]+)(?:#[^"]*)?"/g)){
